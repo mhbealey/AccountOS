@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -26,6 +25,7 @@ import {
   ArrowUpDown,
   Trash2,
 } from 'lucide-react';
+import { useClientStore } from '@/stores/client-store';
 
 const STATUS_OPTIONS: ClientStatusLiteral[] = [
   'Prospect',
@@ -98,8 +98,11 @@ function isOverdue(dateStr: Date | string | null): boolean {
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const clients = useClientStore((s) => s.clients);
+  const addClient = useClientStore((s) => s.addClient);
+  const updateClient = useClientStore((s) => s.updateClient);
+  const deleteClientAction = useClientStore((s) => s.deleteClient);
+
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -112,32 +115,12 @@ export default function ClientsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
-
-  const fetchClients = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/clients');
-      if (res.ok) {
-        const data = await res.json();
-        setClients(data);
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
 
   const filtered = useMemo(() => {
     let list = [...clients];
@@ -201,36 +184,18 @@ export default function ClientsPage() {
   };
 
   const handleCreateClient = async (data: Partial<Client>) => {
-    const res = await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to create client');
-    await fetchClients();
+    addClient(data as any);
   };
 
   const handleUpdateClient = async (data: Partial<Client>) => {
     if (!editingClient) return;
-    const res = await fetch(`/api/clients/${editingClient.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update client');
-    await fetchClients();
+    updateClient(editingClient.id, data);
   };
 
   const handleDeleteClient = async () => {
     if (!deleteTarget) return;
-    setDeleteLoading(true);
-    try {
-      await fetch(`/api/clients/${deleteTarget.id}`, { method: 'DELETE' });
-      setDeleteTarget(null);
-      await fetchClients();
-    } finally {
-      setDeleteLoading(false);
-    }
+    deleteClientAction(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   const primaryContact = (client: Client) => {
@@ -325,13 +290,7 @@ export default function ClientsPage() {
       </div>
 
       {/* Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState
           icon={<Users className="h-7 w-7" />}
           title={debouncedSearch || statusFilter || industryFilter || healthFilter || sourceFilter
@@ -466,9 +425,8 @@ export default function ClientsPage() {
             <Button
               variant="destructive"
               onClick={handleDeleteClient}
-              disabled={deleteLoading}
             >
-              {deleteLoading ? 'Deleting...' : 'Delete Client'}
+              Delete Client
             </Button>
           </DialogFooter>
         </DialogContent>

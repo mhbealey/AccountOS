@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { PriorityList, type PriorityItem } from '@/components/dashboard/PriorityList';
@@ -21,177 +20,56 @@ import { ActivityFeed, type ActivityItem } from '@/components/dashboard/Activity
 import { RevenueChart, type RevenueDataPoint } from '@/components/dashboard/RevenueChart';
 import { PipelineFunnel, type PipelineStage } from '@/components/dashboard/PipelineFunnel';
 import { AIInsightsPanel } from '@/components/dashboard/AIInsightsPanel';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface Client {
-  id: string;
-  name: string;
-  status: string;
-  healthScore: number;
-  lastContactedAt: string;
-}
-
-interface Deal {
-  id: string;
-  title: string;
-  value: number;
-  probability: number;
-  stage: string;
-  expectedCloseDate: string;
-  clientId: string;
-  clientName?: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  dueDate: string;
-  status: string;
-  clientId?: string;
-}
-
-interface Invoice {
-  id: string;
-  status: string;
-  total: number;
-  dueDate: string;
-  clientId: string;
-  clientName?: string;
-}
-
-interface Contract {
-  id: string;
-  clientId: string;
-  clientName?: string;
-  endDate: string;
-  status: string;
-}
-
-interface TimeEntry {
-  id: string;
-  hours: number;
-  billable: boolean;
-  date: string;
-}
-
-interface DashboardData {
-  clients: Client[];
-  deals: Deal[];
-  tasks: Task[];
-  invoices: Invoice[];
-  activities: ActivityItem[];
-  contracts: Contract[];
-  timeEntries: TimeEntry[];
-  revenueData: RevenueDataPoint[];
-  pipelineData: PipelineStage[];
-}
-
-// ---------------------------------------------------------------------------
-// Data fetching helper
-// ---------------------------------------------------------------------------
-
-async function fetchJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}`);
-  const json = await res.json();
-  return (json.data ?? json) as T;
-}
+import { useClientStore } from '@/stores/client-store';
+import { useDealStore } from '@/stores/deal-store';
+import { useTaskStore } from '@/stores/task-store';
+import { useInvoiceStore } from '@/stores/invoice-store';
+import { useActivityStore } from '@/stores/activity-store';
+import { useContractStore } from '@/stores/contract-store';
+import { useTimeStore } from '@/stores/time-store';
 
 // ---------------------------------------------------------------------------
 // Dashboard Component
 // ---------------------------------------------------------------------------
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // ---------------------------
-  // Fetch all data
-  // ---------------------------
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [
-        clients,
-        deals,
-        tasks,
-        invoices,
-        activities,
-        contracts,
-        timeEntries,
-        revenueData,
-        pipelineData,
-      ] = await Promise.all([
-        fetchJSON<Client[]>('/api/clients'),
-        fetchJSON<Deal[]>('/api/deals'),
-        fetchJSON<Task[]>('/api/tasks'),
-        fetchJSON<Invoice[]>('/api/invoices'),
-        fetchJSON<ActivityItem[]>('/api/activities'),
-        fetchJSON<Contract[]>('/api/contracts'),
-        fetchJSON<TimeEntry[]>('/api/time-entries'),
-        fetchJSON<RevenueDataPoint[]>('/api/reports/revenue'),
-        fetchJSON<PipelineStage[]>('/api/reports/pipeline'),
-      ]);
-
-      setData({
-        clients,
-        deals,
-        tasks,
-        invoices,
-        activities,
-        contracts,
-        timeEntries,
-        revenueData,
-        pipelineData,
-      });
-    } catch (err) {
-      console.error('Dashboard load error:', err);
-      setError('Failed to load dashboard data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const clients = useClientStore((s) => s.clients);
+  const deals = useDealStore((s) => s.deals);
+  const tasks = useTaskStore((s) => s.tasks);
+  const invoices = useInvoiceStore((s) => s.invoices);
+  const activities = useActivityStore((s) => s.activities);
+  const contracts = useContractStore((s) => s.contracts);
+  const timeEntries = useTimeStore((s) => s.timeEntries);
 
   // ---------------------------
   // Computed metrics
   // ---------------------------
   const metrics = useMemo(() => {
-    if (!data) return null;
-
-    const activeClients = data.clients.filter((c) => c.status === 'Active');
+    const activeClients = clients.filter((c) => c.status === 'Active');
 
     const mrr = activeClients.reduce((sum, c) => {
-      const clientDeals = data.deals.filter(
+      const clientDeals = deals.filter(
         (d) => d.clientId === c.id && d.stage === 'ClosedWon'
       );
       return sum + clientDeals.reduce((s, d) => s + d.value, 0);
     }, 0);
 
-    const weightedPipeline = data.deals
+    const weightedPipeline = deals
       .filter((d) => d.stage !== 'ClosedWon' && d.stage !== 'ClosedLost')
       .reduce((sum, d) => sum + d.value * (d.probability / 100), 0);
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const revenueThisMonth = data.timeEntries
+    const revenueThisMonth = timeEntries
       .filter((te) => te.billable && new Date(te.date) >= startOfMonth)
       .reduce((sum, te) => sum + te.hours, 0);
 
-    const outstandingInvoices = data.invoices
-      .filter((inv) => inv.status === 'unpaid' || inv.status === 'overdue')
-      .reduce((sum, inv) => sum + inv.total, 0);
+    const outstandingInvoices = invoices
+      .filter((inv) => inv.status === 'Sent' || inv.status === 'Viewed' || inv.status === 'Overdue')
+      .reduce((sum, inv) => sum + inv.amount + inv.tax, 0);
 
     const TARGET_HOURS_PER_MONTH = 160;
-    const billableHours = data.timeEntries
+    const billableHours = timeEntries
       .filter((te) => te.billable && new Date(te.date) >= startOfMonth)
       .reduce((sum, te) => sum + te.hours, 0);
     const utilization = TARGET_HOURS_PER_MONTH > 0
@@ -215,22 +93,20 @@ export default function DashboardPage() {
       utilization,
       avgHealth,
     };
-  }, [data]);
+  }, [clients, deals, timeEntries, invoices]);
 
   // ---------------------------
   // Priorities
   // ---------------------------
   const priorities = useMemo((): PriorityItem[] => {
-    if (!data) return [];
-
     const items: PriorityItem[] = [];
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
 
     // Overdue tasks
-    data.tasks
+    tasks
       .filter(
-        (t) => t.status !== 'done' && t.status !== 'completed' && t.dueDate < todayStr
+        (t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate).toISOString().split('T')[0] < todayStr
       )
       .forEach((t) =>
         items.push({
@@ -243,10 +119,10 @@ export default function DashboardPage() {
       );
 
     // Tasks due today
-    data.tasks
+    tasks
       .filter(
         (t) =>
-          t.status !== 'done' && t.status !== 'completed' && t.dueDate === todayStr
+          t.status !== 'done' && t.dueDate && new Date(t.dueDate).toISOString().split('T')[0] === todayStr
       )
       .forEach((t) =>
         items.push({
@@ -259,7 +135,7 @@ export default function DashboardPage() {
       );
 
     // Declining health clients
-    data.clients
+    clients
       .filter((c) => c.status === 'Active' && c.healthScore < 40)
       .forEach((c) =>
         items.push({
@@ -275,15 +151,17 @@ export default function DashboardPage() {
     const thirtyDaysOut = new Date(now.getTime() + 30 * 86400000)
       .toISOString()
       .split('T')[0];
-    data.contracts
+    contracts
       .filter(
         (c) =>
-          c.status === 'active' && c.endDate >= todayStr && c.endDate <= thirtyDaysOut
+          c.status === 'Active' && c.endDate &&
+          new Date(c.endDate).toISOString().split('T')[0] >= todayStr &&
+          new Date(c.endDate).toISOString().split('T')[0] <= thirtyDaysOut
       )
       .forEach((c) =>
         items.push({
           id: `contract-${c.id}`,
-          label: `Contract expiring: ${c.clientName ?? c.clientId}`,
+          label: `Contract expiring: ${c.clientId}`,
           type: 'contract',
           severity: 'warning',
           href: `/clients/${c.clientId}`,
@@ -291,12 +169,12 @@ export default function DashboardPage() {
       );
 
     // Overdue invoices
-    data.invoices
-      .filter((inv) => inv.status === 'overdue')
+    invoices
+      .filter((inv) => inv.status === 'Overdue')
       .forEach((inv) =>
         items.push({
           id: `invoice-${inv.id}`,
-          label: `Overdue invoice: ${inv.clientName ?? inv.clientId} — ${formatCurrency(inv.total)}`,
+          label: `Overdue invoice: ${inv.clientId} — ${formatCurrency(inv.amount + inv.tax)}`,
           type: 'invoice',
           severity: 'critical',
           href: `/invoices`,
@@ -307,13 +185,14 @@ export default function DashboardPage() {
     const weekOut = new Date(now.getTime() + 7 * 86400000)
       .toISOString()
       .split('T')[0];
-    data.deals
+    deals
       .filter(
         (d) =>
           d.stage !== 'ClosedWon' &&
           d.stage !== 'ClosedLost' &&
-          d.expectedCloseDate >= todayStr &&
-          d.expectedCloseDate <= weekOut
+          d.closeDate &&
+          new Date(d.closeDate).toISOString().split('T')[0] >= todayStr &&
+          new Date(d.closeDate).toISOString().split('T')[0] <= weekOut
       )
       .forEach((d) =>
         items.push({
@@ -321,118 +200,120 @@ export default function DashboardPage() {
           label: `Closing soon: ${d.title} — ${formatCurrency(d.value)}`,
           type: 'deal',
           severity: 'info',
-          href: '/deals',
+          href: '/pipeline',
         })
       );
 
     return items;
-  }, [data]);
+  }, [tasks, clients, contracts, invoices, deals]);
+
+  // ---------------------------
+  // Activity feed items
+  // ---------------------------
+  const activityItems = useMemo((): ActivityItem[] => {
+    return [...activities]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10)
+      .map((a) => {
+        const client = clients.find((c) => c.id === a.clientId);
+        return {
+          id: a.id,
+          type: a.type,
+          title: a.title,
+          clientName: client?.name ?? 'Unknown',
+          clientId: a.clientId ?? '',
+          createdAt: typeof a.date === 'string' ? a.date : a.date.toISOString(),
+        } satisfies ActivityItem;
+      });
+  }, [activities]);
+
+  // ---------------------------
+  // Revenue chart data (computed from time entries)
+  // ---------------------------
+  const revenueData = useMemo((): RevenueDataPoint[] => {
+    const now = new Date();
+    const months: RevenueDataPoint[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const revenue = timeEntries
+        .filter((te) => {
+          const teDate = new Date(te.date);
+          return te.billable && teDate >= d && teDate <= monthEnd;
+        })
+        .reduce((sum, te) => sum + te.hours * te.rate, 0);
+      months.push({ month: label, revenue } as RevenueDataPoint);
+    }
+    return months;
+  }, [timeEntries]);
+
+  // ---------------------------
+  // Pipeline funnel data
+  // ---------------------------
+  const pipelineData = useMemo((): PipelineStage[] => {
+    const stages = ['Lead', 'Discovery', 'Proposal', 'Negotiation', 'ClosedWon', 'ClosedLost'] as const;
+    return stages.map((stage) => {
+      const stageDeals = deals.filter((d) => d.stage === stage);
+      return {
+        stage,
+        count: stageDeals.length,
+        value: stageDeals.reduce((sum, d) => sum + d.value, 0),
+      } as PipelineStage;
+    });
+  }, [deals]);
 
   // ---------------------------
   // AI Insights data
   // ---------------------------
   const staleClients = useMemo(() => {
-    if (!data) return [];
     const now = new Date();
-    return data.clients
+    return clients
       .filter((c) => c.status === 'Active')
       .map((c) => {
-        const daysSince = Math.floor(
-          (now.getTime() - new Date(c.lastContactedAt).getTime()) / 86400000
-        );
+        const daysSince = c.lastContactAt
+          ? Math.floor(
+            (now.getTime() - new Date(c.lastContactAt).getTime()) / 86400000
+          )
+          : 999;
         return { id: c.id, name: c.name, daysSinceContact: daysSince };
       })
       .filter((c) => c.daysSinceContact >= 14)
       .sort((a, b) => b.daysSinceContact - a.daysSinceContact);
-  }, [data]);
+  }, [clients]);
 
   const upcomingRenewals = useMemo(() => {
-    if (!data) return [];
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const sixtyDaysOut = new Date(now.getTime() + 60 * 86400000)
       .toISOString()
       .split('T')[0];
-    return data.contracts
+    return contracts
       .filter(
         (c) =>
-          c.status === 'active' && c.endDate >= todayStr && c.endDate <= sixtyDaysOut
+          c.status === 'Active' && c.endDate &&
+          new Date(c.endDate).toISOString().split('T')[0] >= todayStr &&
+          new Date(c.endDate).toISOString().split('T')[0] <= sixtyDaysOut
       )
       .map((c) => ({
         id: c.id,
-        clientName: c.clientName ?? c.clientId,
+        clientName: c.clientId,
         clientId: c.clientId,
-        expiresAt: c.endDate,
+        expiresAt: typeof c.endDate === 'string' ? c.endDate : new Date(c.endDate!).toISOString(),
         daysUntil: Math.ceil(
-          (new Date(c.endDate).getTime() - now.getTime()) / 86400000
+          (new Date(c.endDate!).getTime() - now.getTime()) / 86400000
         ),
       }))
       .sort((a, b) => a.daysUntil - b.daysUntil);
-  }, [data]);
+  }, [contracts]);
 
   const handleGenerateDigest = useCallback(async () => {
-    await fetch('/api/ai/weekly-digest', { method: 'POST' });
+    try {
+      await fetch('/api/ai/weekly-digest', { method: 'POST' });
+    } catch {
+      // AI calls are optional in static mode
+    }
   }, []);
-
-  // ---------------------------
-  // Loading skeleton
-  // ---------------------------
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a1a] p-6">
-        <div className="mx-auto max-w-7xl space-y-6">
-          {/* Header skeleton */}
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded-lg bg-[#1e1e3a]" />
-            <Skeleton className="h-8 w-48 bg-[#1e1e3a]" />
-          </div>
-
-          {/* Metric cards skeleton */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-xl bg-[#12122a]" />
-            ))}
-          </div>
-
-          {/* Action panels skeleton */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-80 rounded-xl bg-[#12122a]" />
-            <Skeleton className="h-80 rounded-xl bg-[#12122a]" />
-          </div>
-
-          {/* Charts skeleton */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Skeleton className="h-80 rounded-xl bg-[#12122a]" />
-            <Skeleton className="h-80 rounded-xl bg-[#12122a]" />
-          </div>
-
-          {/* AI panel skeleton */}
-          <Skeleton className="h-64 rounded-xl bg-[#12122a]" />
-        </div>
-      </div>
-    );
-  }
-
-  // ---------------------------
-  // Error state
-  // ---------------------------
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a1a] p-6">
-        <Card className="max-w-md border-[#1e1e3a] bg-[#12122a]">
-          <CardContent className="p-8 text-center">
-            <p className="mb-4 text-lg font-semibold text-red-400">{error}</p>
-            <button
-              onClick={loadData}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
-            >
-              Retry
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   // ---------------------------
   // Main render
@@ -463,44 +344,44 @@ export default function DashboardPage() {
           <MetricCard
             icon={<Users className="h-4 w-4" />}
             label="Active Clients"
-            value={metrics?.activeClients ?? 0}
+            value={metrics.activeClients}
             trend="up"
             trendLabel="+3"
           />
           <MetricCard
             icon={<DollarSign className="h-4 w-4" />}
             label="MRR"
-            value={formatCurrency(metrics?.mrr ?? 0)}
+            value={formatCurrency(metrics.mrr)}
             trend="up"
             trendLabel="+8%"
           />
           <MetricCard
             icon={<Target className="h-4 w-4" />}
             label="Weighted Pipeline"
-            value={formatCurrency(metrics?.weightedPipeline ?? 0)}
+            value={formatCurrency(metrics.weightedPipeline)}
           />
           <MetricCard
             icon={<Clock className="h-4 w-4" />}
             label="Revenue (This Month)"
-            value={`${metrics?.revenueThisMonth ?? 0}h`}
+            value={`${metrics.revenueThisMonth}h`}
           />
           <MetricCard
             icon={<FileText className="h-4 w-4" />}
             label="Outstanding Invoices"
-            value={formatCurrency(metrics?.outstandingInvoices ?? 0)}
+            value={formatCurrency(metrics.outstandingInvoices)}
             trend={
-              (metrics?.outstandingInvoices ?? 0) > 0 ? 'down' : 'neutral'
+              metrics.outstandingInvoices > 0 ? 'down' : 'neutral'
             }
           />
           <MetricCard
             icon={<Gauge className="h-4 w-4" />}
             label="Utilization Rate"
-            value={`${metrics?.utilization ?? 0}%`}
+            value={`${metrics.utilization}%`}
           />
           <MetricCard
             icon={<HeartPulse className="h-4 w-4" />}
             label="Avg. Client Health"
-            value={metrics?.avgHealth ?? 0}
+            value={metrics.avgHealth}
           />
         </div>
 
@@ -538,7 +419,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto">
               <ActivityFeed
-                activities={(data?.activities ?? []).slice(0, 10)}
+                activities={activityItems}
               />
             </CardContent>
           </Card>
@@ -555,7 +436,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500">Last 12 months</p>
             </CardHeader>
             <CardContent>
-              <RevenueChart data={data?.revenueData ?? []} />
+              <RevenueChart data={revenueData} />
             </CardContent>
           </Card>
 
@@ -570,7 +451,7 @@ export default function DashboardPage() {
               </p>
             </CardHeader>
             <CardContent>
-              <PipelineFunnel data={data?.pipelineData ?? []} />
+              <PipelineFunnel data={pipelineData} />
             </CardContent>
           </Card>
         </div>

@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -40,6 +39,13 @@ import {
   TrendingUp,
   ExternalLink,
 } from 'lucide-react';
+import { useClientStore } from '@/stores/client-store';
+import { useDealStore } from '@/stores/deal-store';
+import { useActivityStore } from '@/stores/activity-store';
+import { useTimeStore } from '@/stores/time-store';
+import { useInvoiceStore } from '@/stores/invoice-store';
+import { useContractStore } from '@/stores/contract-store';
+import { useProposalStore } from '@/stores/proposal-store';
 
 function getStatusBadgeVariant(status: string): 'default' | 'success' | 'warning' | 'danger' | 'info' {
   switch (status) {
@@ -92,85 +98,51 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const clientId = params.id as string;
 
-  const [client, setClient] = useState<Client | null>(null);
-  const [loading, setLoading] = useState(true);
+  const clients = useClientStore((s) => s.clients);
+  const updateClientAction = useClientStore((s) => s.updateClient);
+  const deleteClientAction = useClientStore((s) => s.deleteClient);
+  const deals = useDealStore((s) => s.deals);
+  const activities = useActivityStore((s) => s.activities);
+  const timeEntries = useTimeStore((s) => s.timeEntries);
+  const invoices = useInvoiceStore((s) => s.invoices);
+  const contracts = useContractStore((s) => s.contracts);
+  const proposals = useProposalStore((s) => s.proposals);
+
+  const client = useMemo(() => clients.find((c) => c.id === clientId) ?? null, [clients, clientId]);
+  const clientDeals = useMemo(() => deals.filter((d) => d.clientId === clientId), [deals, clientId]);
+  const clientActivities = useMemo(() => activities.filter((a) => a.clientId === clientId), [activities, clientId]);
+  const clientTimeEntries = useMemo(() => timeEntries.filter((te) => te.clientId === clientId), [timeEntries, clientId]);
+  const clientInvoices = useMemo(() => invoices.filter((inv) => inv.clientId === clientId), [invoices, clientId]);
+  const clientContracts = useMemo(() => contracts.filter((c) => c.clientId === clientId), [contracts, clientId]);
+  const clientProposals = useMemo(() => proposals.filter((p) => p.clientId === clientId), [proposals, clientId]);
+
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [csmPulse, setCsmPulse] = useState(50);
+  const [csmPulse, setCsmPulse] = useState(client?.csmPulse ?? 50);
   const [savingPulse, setSavingPulse] = useState(false);
 
-  const fetchClient = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/clients/${clientId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setClient(data);
-        setCsmPulse(data.csmPulse ?? 50);
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  }, [clientId]);
-
-  useEffect(() => {
-    fetchClient();
-  }, [fetchClient]);
-
   const handleUpdate = async (data: Partial<Client>) => {
-    const res = await fetch(`/api/clients/${clientId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update');
-    await fetchClient();
+    updateClientAction(clientId, data);
   };
 
   const handleDelete = async () => {
-    setDeleteLoading(true);
-    try {
-      await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
-      router.push('/clients');
-    } finally {
-      setDeleteLoading(false);
-    }
+    deleteClientAction(clientId);
+    router.push('/clients');
   };
 
   const handleNotesUpdate = async (updatedNotes: string) => {
-    await handleUpdate({ notes: updatedNotes } as Partial<Client>);
+    updateClientAction(clientId, { notes: updatedNotes } as Partial<Client>);
   };
 
   const handleCsmPulseChange = async (value: number) => {
     setCsmPulse(value);
     setSavingPulse(true);
-    try {
-      await fetch(`/api/clients/${clientId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csmPulse: value }),
-      });
-      await fetchClient();
-    } finally {
-      setSavingPulse(false);
-    }
+    updateClientAction(clientId, { csmPulse: value } as Partial<Client>);
+    setSavingPulse(false);
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-        <Skeleton className="h-96" />
-      </div>
-    );
-  }
+  // Stub onRefresh for sub-components that expect it (data is now reactive via stores)
+  const noop = () => {};
 
   if (!client) {
     return (
@@ -249,7 +221,7 @@ export default function ClientDetailPage() {
           <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
 
-        {/* ── Overview Tab ── */}
+        {/* -- Overview Tab -- */}
         <TabsContent value="overview">
           <div className="space-y-6 mt-4">
             {/* Key info cards */}
@@ -395,53 +367,53 @@ export default function ClientDetailPage() {
           </div>
         </TabsContent>
 
-        {/* ── Contacts Tab ── */}
+        {/* -- Contacts Tab -- */}
         <TabsContent value="contacts">
           <div className="mt-4">
             <ContactList
               contacts={client.contacts ?? []}
               clientId={clientId}
-              onRefresh={fetchClient}
+              onRefresh={noop}
             />
           </div>
         </TabsContent>
 
-        {/* ── Goals Tab ── */}
+        {/* -- Goals Tab -- */}
         <TabsContent value="goals">
           <div className="mt-4">
             <GoalList
               goals={client.goals ?? []}
               clientId={clientId}
-              onRefresh={fetchClient}
+              onRefresh={noop}
             />
           </div>
         </TabsContent>
 
-        {/* ── Activity Tab ── */}
+        {/* -- Activity Tab -- */}
         <TabsContent value="activity">
           <div className="mt-4">
             <ClientActivityTab
-              activities={client.activities ?? []}
+              activities={clientActivities as any}
               clientId={clientId}
-              onRefresh={fetchClient}
+              onRefresh={noop}
             />
           </div>
         </TabsContent>
 
-        {/* ── Financials Tab ── */}
+        {/* -- Financials Tab -- */}
         <TabsContent value="financials">
           <div className="mt-4">
             <ClientFinancialsTab
-              timeEntries={client.timeEntries ?? []}
-              invoices={client.invoices ?? []}
+              timeEntries={clientTimeEntries as any}
+              invoices={clientInvoices as any}
             />
           </div>
         </TabsContent>
 
-        {/* ── Deals Tab ── */}
+        {/* -- Deals Tab -- */}
         <TabsContent value="deals">
           <div className="mt-4">
-            {!client.deals || client.deals.length === 0 ? (
+            {clientDeals.length === 0 ? (
               <Card className="border-border bg-[#12122a]">
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -463,7 +435,7 @@ export default function ClientDetailPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {client.deals.map((deal) => (
+                {clientDeals.map((deal) => (
                   <Card key={deal.id} className="border-border bg-[#12122a] p-4">
                     <div className="flex items-start justify-between">
                       <div>
@@ -501,7 +473,7 @@ export default function ClientDetailPage() {
           </div>
         </TabsContent>
 
-        {/* ── Documents Tab ── */}
+        {/* -- Documents Tab -- */}
         <TabsContent value="documents">
           <div className="mt-4 space-y-6">
             {/* Contracts */}
@@ -521,7 +493,7 @@ export default function ClientDetailPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {!client.contracts || client.contracts.length === 0 ? (
+                {clientContracts.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No contracts linked to this client.
                   </p>
@@ -539,7 +511,7 @@ export default function ClientDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {client.contracts.map((contract) => (
+                        {clientContracts.map((contract) => (
                           <tr key={contract.id} className="border-b border-border/50">
                             <td className="py-2 pr-4 text-foreground font-medium">
                               {contract.title}
@@ -587,7 +559,7 @@ export default function ClientDetailPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {!client.proposals || client.proposals.length === 0 ? (
+                {clientProposals.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No proposals linked to this client.
                   </p>
@@ -604,7 +576,7 @@ export default function ClientDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {client.proposals.map((proposal) => (
+                        {clientProposals.map((proposal) => (
                           <tr key={proposal.id} className="border-b border-border/50">
                             <td className="py-2 pr-4 text-foreground font-medium">
                               {proposal.title}
@@ -662,9 +634,8 @@ export default function ClientDetailPage() {
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={deleteLoading}
             >
-              {deleteLoading ? 'Deleting...' : 'Delete Client'}
+              Delete Client
             </Button>
           </DialogFooter>
         </DialogContent>

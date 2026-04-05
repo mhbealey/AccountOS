@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts';
+import type { PieLabelRenderProps } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -186,7 +187,10 @@ export function ClientsReport() {
                     outerRadius={100}
                     innerRadius={55}
                     strokeWidth={0}
-                    label={(props: Record<string, unknown>) => `${props.status}: ${props.count}`}
+                    label={(props: PieLabelRenderProps) => {
+                      const p = props as PieLabelRenderProps & { status: string; count: number };
+                      return `${p.status}: ${p.count}`;
+                    }}
                     labelLine={{ stroke: '#475569' }}
                   >
                     {data.statusBreakdown.map((_, idx) => (

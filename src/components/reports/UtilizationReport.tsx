@@ -17,6 +17,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
+import type { PieLabelRenderProps } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportCard } from './ReportCard';
@@ -266,7 +267,10 @@ export function UtilizationReport() {
                     outerRadius={100}
                     innerRadius={55}
                     strokeWidth={0}
-                    label={({ category, hours }) => `${category}: ${hours.toFixed(1)}h`}
+                    label={(props: PieLabelRenderProps) => {
+                      const p = props as PieLabelRenderProps & { category: string; hours: number };
+                      return `${p.category}: ${p.hours.toFixed(1)}h`;
+                    }}
                     labelLine={{ stroke: '#475569' }}
                   >
                     {data.categoryBreakdown.map((_, idx) => (
@@ -280,7 +284,7 @@ export function UtilizationReport() {
                       borderRadius: 8,
                     }}
                     itemStyle={{ color: '#94a3b8' }}
-                    formatter={(value: number) => [`${value.toFixed(1)} hours`, 'Hours']}
+                    formatter={(value: unknown) => [`${(value as number).toFixed(1)} hours`, 'Hours']}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -330,7 +334,7 @@ export function UtilizationReport() {
                       borderRadius: 8,
                     }}
                     labelStyle={{ color: '#94a3b8' }}
-                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'Utilization']}
+                    formatter={(value: unknown) => [`${(value as number).toFixed(1)}%`, 'Utilization']}
                   />
                   <ReferenceLine
                     y={data.targetUtilization}
@@ -389,7 +393,7 @@ export function UtilizationReport() {
                       borderRadius: 8,
                     }}
                     labelStyle={{ color: '#94a3b8' }}
-                    formatter={(value: number) => [formatCurrency(value), '$/Hour']}
+                    formatter={(value: unknown) => [formatCurrency(value as number), '$/Hour']}
                   />
                   <Line
                     type="monotone"

@@ -205,8 +205,8 @@ export function CashFlowReport() {
                     borderRadius: 8,
                   }}
                   labelStyle={{ color: '#94a3b8' }}
-                  formatter={(value: number, name: string) => [
-                    formatCurrency(value),
+                  formatter={(value: unknown, name: unknown) => [
+                    formatCurrency(value as number),
                     name === 'inflows' ? 'Inflows' : name === 'outflows' ? 'Outflows' : 'Balance',
                   ]}
                 />

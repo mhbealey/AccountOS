@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
       clientStatus: client.status,
       industry: client.industry,
       description: body.description,
-      existingDeals: client.deals.map((d) => ({
+      existingDeals: client.deals.map((d: typeof client.deals[number]) => ({
         title: d.title,
         value: d.value,
         stage: d.stage,
       })),
-      goals: client.goals.map((g) => ({
+      goals: client.goals.map((g: typeof client.goals[number]) => ({
         title: g.title,
         description: g.description,
       })),
@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       3000
     );
 
-    // Try to parse structured JSON from the response
     let sections = {
       executiveSummary: '',
       problemStatement: '',
@@ -80,7 +79,6 @@ export async function POST(request: NextRequest) {
         };
       }
     } catch {
-      // If JSON parsing fails, try to split by numbered sections
       const sectionRegex = /\d+\.\s*(Executive Summary|Problem Statement|Proposed Scope|Deliverables)[:\s]*/gi;
       const parts = rawResponse.split(sectionRegex);
       if (parts.length >= 5) {
@@ -89,7 +87,6 @@ export async function POST(request: NextRequest) {
         sections.scope = parts[6]?.trim() || '';
         sections.deliverables = parts[8]?.trim() || '';
       } else {
-        // Return the whole response as executive summary
         sections.executiveSummary = rawResponse;
       }
     }

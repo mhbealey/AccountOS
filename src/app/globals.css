@@ -53,8 +53,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-dm-sans);
-  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }
 
 * {
@@ -143,42 +143,14 @@ body {
     print-color-adjust: exact;
   }
 
-  /* Hide non-printable elements */
   header,
   nav,
-  aside,
-  .print\\:hidden {
+  aside {
     display: none !important;
   }
 
   main {
     margin: 0 !important;
     padding: 0 !important;
-  }
-
-  /* Reset card styles for print */
-  .print\\:border-none {
-    border: none !important;
-    box-shadow: none !important;
-  }
-
-  .print\\:bg-white {
-    background: #ffffff !important;
-  }
-
-  .print\\:text-black {
-    color: #000000 !important;
-  }
-
-  .print\\:border-gray-200 {
-    border-color: #e5e7eb !important;
-  }
-
-  .print\\:text-gray-500 {
-    color: #6b7280 !important;
-  }
-
-  .print\\:text-indigo-600 {
-    color: #4f46e5 !important;
   }
 }

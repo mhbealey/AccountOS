@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'clientId is required' }, { status: 400 });
     }
 
-    // Either templateId or category must be provided
     if (!body.templateId && !body.category) {
       return NextResponse.json(
         { error: 'Either templateId or category is required' },
@@ -40,7 +39,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Find template
     let template = null;
     if (body.templateId) {
       template = await prisma.template.findUnique({ where: { id: body.templateId } });
@@ -60,11 +58,11 @@ export async function POST(request: NextRequest) {
     const context = JSON.stringify({
       clientName: client.name,
       clientStatus: client.status,
-      contacts: client.contacts.map((c) => ({
+      contacts: client.contacts.map((c: typeof client.contacts[number]) => ({
         name: c.name,
         title: c.title,
       })),
-      recentActivities: client.activities.map((a) => ({
+      recentActivities: client.activities.map((a: typeof client.activities[number]) => ({
         type: a.type,
         title: a.title,
         date: a.date.toISOString().split('T')[0],
@@ -77,19 +75,16 @@ export async function POST(request: NextRequest) {
       1500
     );
 
-    // Try to parse JSON from the response
     let subject = '';
     let emailBody = rawResponse;
 
     try {
-      // Look for JSON in the response
       const jsonMatch = rawResponse.match(/\{[\s\S]*"subject"[\s\S]*"body"[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         subject = parsed.subject || '';
         emailBody = parsed.body || rawResponse;
       } else {
-        // Attempt to extract subject from "Subject:" line
         const subjectMatch = rawResponse.match(/Subject:\s*(.+)/i);
         if (subjectMatch) {
           subject = subjectMatch[1].trim();

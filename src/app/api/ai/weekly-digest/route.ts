@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { generateAIResponse } from '@/lib/ai';
@@ -19,7 +19,6 @@ export async function POST() {
     const thirtyDaysFromNow = new Date(now);
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-    // Fetch all relevant data in parallel
     const [
       activeClients,
       recentActivities,
@@ -79,39 +78,39 @@ export async function POST() {
     ]);
 
     const context = JSON.stringify({
-      activeClients: activeClients.map((c) => ({
+      activeClients: activeClients.map((c: (typeof activeClients)[number]) => ({
         name: c.name,
         healthScore: c.healthScore,
         status: c.status,
       })),
-      recentActivities: recentActivities.map((a) => ({
+      recentActivities: recentActivities.map((a: (typeof recentActivities)[number]) => ({
         clientName: a.client?.name || 'Unknown',
         type: a.type,
         title: a.title,
         date: a.date.toISOString().split('T')[0],
       })),
-      expiringContracts: expiringContracts.map((c) => ({
+      expiringContracts: expiringContracts.map((c: (typeof expiringContracts)[number]) => ({
         clientName: c.client.name,
         title: c.title,
         endDate: c.endDate?.toISOString().split('T')[0] || '',
       })),
-      overdueTasks: overdueTasks.map((t) => ({
+      overdueTasks: overdueTasks.map((t: (typeof overdueTasks)[number]) => ({
         title: t.title,
         clientName: t.client?.name || null,
         dueDate: t.dueDate?.toISOString().split('T')[0] || '',
       })),
-      overdueInvoices: overdueInvoices.map((i) => ({
+      overdueInvoices: overdueInvoices.map((i: (typeof overdueInvoices)[number]) => ({
         number: i.number,
         clientName: i.client.name,
         amount: i.amount,
         dueDate: i.dueDate.toISOString().split('T')[0],
       })),
-      upcomingTasks: upcomingTasks.map((t) => ({
+      upcomingTasks: upcomingTasks.map((t: (typeof upcomingTasks)[number]) => ({
         title: t.title,
         clientName: t.client?.name || null,
         dueDate: t.dueDate?.toISOString().split('T')[0] || '',
       })),
-      dealsUpdate: activeDeals.map((d) => ({
+      dealsUpdate: activeDeals.map((d: (typeof activeDeals)[number]) => ({
         title: d.title,
         clientName: d.client.name,
         stage: d.stage,

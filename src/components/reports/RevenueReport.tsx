@@ -16,6 +16,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
+import type { PieLabelRenderProps } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -306,9 +307,10 @@ export function RevenueReport() {
                     outerRadius={100}
                     innerRadius={60}
                     strokeWidth={0}
-                    label={(props: Record<string, unknown>) =>
-                      `${props.clientName}: ${(props.percentage as number).toFixed(1)}%`
-                    }
+                    label={(props: PieLabelRenderProps) => {
+                      const p = props as PieLabelRenderProps & { clientName: string; percentage: number };
+                      return `${p.clientName}: ${p.percentage.toFixed(1)}%`;
+                    }}
                     labelLine={{ stroke: '#475569' }}
                   >
                     {data.byClient.map((_, idx) => (

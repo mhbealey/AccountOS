@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    // Fetch time entries in range
     const timeEntries = await prisma.timeEntry.findMany({
       where: {
         date: { gte: startDate },
@@ -24,7 +23,6 @@ export async function GET(request: NextRequest) {
       select: { date: true, hours: true, rate: true },
     });
 
-    // Fetch invoices in range
     const invoices = await prisma.invoice.findMany({
       where: {
         issuedDate: { gte: startDate },
@@ -32,13 +30,14 @@ export async function GET(request: NextRequest) {
       select: { issuedDate: true, amount: true, status: true, paidDate: true },
     });
 
-    // Fetch user's revenue target
+    type TimeEntryRow = (typeof timeEntries)[number];
+    type InvoiceRow = (typeof invoices)[number];
+
     const user = await prisma.user.findFirst({
       select: { goalAnnualRev: true },
     });
     const monthlyTarget = (user?.goalAnnualRev || 0) / 12;
 
-    // Build monthly data
     const monthlyData: Array<{
       month: string;
       revenue: number;
@@ -52,30 +51,27 @@ export async function GET(request: NextRequest) {
       const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
       const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
 
-      // Revenue from billable time entries
       const monthRevenue = timeEntries
-        .filter((te) => {
+        .filter((te: TimeEntryRow) => {
           const d = new Date(te.date);
           return d >= monthDate && d <= monthEnd;
         })
-        .reduce((sum, te) => sum + te.hours * te.rate, 0);
+        .reduce((sum: number, te: TimeEntryRow) => sum + te.hours * te.rate, 0);
 
-      // Invoiced amount
       const monthInvoiced = invoices
-        .filter((inv) => {
+        .filter((inv: InvoiceRow) => {
           const d = new Date(inv.issuedDate);
           return d >= monthDate && d <= monthEnd;
         })
-        .reduce((sum, inv) => sum + inv.amount, 0);
+        .reduce((sum: number, inv: InvoiceRow) => sum + inv.amount, 0);
 
-      // Collected (paid invoices)
       const monthCollected = invoices
-        .filter((inv) => {
+        .filter((inv: InvoiceRow) => {
           if (inv.status !== 'Paid' || !inv.paidDate) return false;
           const d = new Date(inv.paidDate);
           return d >= monthDate && d <= monthEnd;
         })
-        .reduce((sum, inv) => sum + inv.amount, 0);
+        .reduce((sum: number, inv: InvoiceRow) => sum + inv.amount, 0);
 
       monthlyData.push({
         month: monthKey,

@@ -99,3 +99,86 @@ body {
   background: rgba(99, 102, 241, 0.3);
   color: #ffffff;
 }
+
+/* Command Palette & AI Copilot animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoom-in-95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-in {
+  animation-duration: 150ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-95 {
+  animation-name: zoom-in-95;
+}
+
+.slide-in-from-right {
+  animation-name: slide-in-from-right;
+}
+
+/* Print styles for invoices */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide non-printable elements */
+  header,
+  nav,
+  aside,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Reset card styles for print */
+  .print\\:border-none {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .print\\:bg-white {
+    background: #ffffff !important;
+  }
+
+  .print\\:text-black {
+    color: #000000 !important;
+  }
+
+  .print\\:border-gray-200 {
+    border-color: #e5e7eb !important;
+  }
+
+  .print\\:text-gray-500 {
+    color: #6b7280 !important;
+  }
+
+  .print\\:text-indigo-600 {
+    color: #4f46e5 !important;
+  }
+}

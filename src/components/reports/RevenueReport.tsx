@@ -306,8 +306,8 @@ export function RevenueReport() {
                     outerRadius={100}
                     innerRadius={60}
                     strokeWidth={0}
-                    label={({ clientName, percentage }) =>
-                      `${clientName}: ${percentage.toFixed(1)}%`
+                    label={(props: Record<string, unknown>) =>
+                      `${props.clientName}: ${(props.percentage as number).toFixed(1)}%`
                     }
                     labelLine={{ stroke: '#475569' }}
                   >
@@ -328,7 +328,7 @@ export function RevenueReport() {
                       borderRadius: 8,
                     }}
                     itemStyle={{ color: '#94a3b8' }}
-                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'Share']}
+                    formatter={(value: unknown) => [`${(value as number).toFixed(1)}%`, 'Share']}
                   />
                 </PieChart>
               </ResponsiveContainer>

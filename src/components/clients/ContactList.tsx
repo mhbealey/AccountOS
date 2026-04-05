@@ -18,7 +18,7 @@ import {
   Meh,
   Frown,
   HelpCircle,
-  Linkedin,
+  Link2,
   Cake,
   Heart,
 } from 'lucide-react';
@@ -210,7 +210,7 @@ export function ContactList({ contacts, clientId, onRefresh }: ContactListProps)
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-foreground transition-colors"
                   >
-                    <Linkedin className="h-3 w-3" />
+                    <Link2 className="h-3 w-3" />
                     LinkedIn
                   </a>
                 )}

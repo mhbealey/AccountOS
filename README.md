@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AccountOS v4
 
-## Getting Started
+Production-grade account management operating system for solo contract Account Managers. AI-enhanced relationship intelligence, not another CRM.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript (strict)
+- **Styling**: Tailwind CSS v4 + shadcn/ui patterns
+- **Database**: SQLite via Prisma ORM v7
+- **Auth**: NextAuth.js v5 (JWT credentials)
+- **State**: Zustand (per-domain stores)
+- **AI**: Claude API (meeting prep, QBR generation, email drafts)
+- **Charts**: Recharts
+- **DnD**: @dnd-kit (Pipeline Kanban)
+
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Set up environment
+cp .env.example .env.local
+
+# Push database schema
+npx prisma db push
+
+# Seed with demo data
+npx prisma db seed
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Login: `admin@accountos.app` / `password123`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Modules
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Module | Description |
+|--------|-------------|
+| Dashboard | 7 KPI cards, priorities, activity feed, charts, AI insights |
+| Clients | Full CRUD, 7-tab detail (overview, contacts, goals, activity, financials, deals, docs) |
+| Pipeline | Kanban drag-and-drop, list view, stage history, win/loss tracking |
+| Tasks | Categories, priorities, recurring tasks, overdue tracking |
+| Time | Live timer, manual entry, weekly grid, monthly summary, charts |
+| Invoices | State machine, line items, aging report, PDF-ready layout |
+| Contracts | Lifecycle tracking, renewal alerts, expiry warnings |
+| Activity | Relationship journal, 14 activity types, sentiment, key moments |
+| Proposals | Full-page section editor, deliverables, preview |
+| Playbooks | 5 built-in playbooks, trigger mechanism, custom creation |
+| Templates | Email templates with {{variable}} substitution |
+| Reports | Revenue, pipeline, clients, utilization, 13-week cash flow |
+| AI Copilot | Meeting prep, QBR generation, email drafts, weekly digest |
+| Settings | Business config, health weights, data export/import |
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/           # Next.js pages + API routes
+├── components/    # UI + layout + module components
+├── stores/        # Zustand stores (12 domain stores)
+├── hooks/         # Custom React hooks
+├── lib/           # Business logic (health score, state machine, validators)
+├── types/         # TypeScript interfaces
+└── generated/     # Prisma client
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment Variables
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Variable | Required | Description |
+|----------|----------|-------------|
+| DATABASE_URL | Yes | SQLite path: `file:./prisma/dev.db` |
+| NEXTAUTH_SECRET | Yes | JWT signing secret |
+| NEXTAUTH_URL | Yes | App URL (http://localhost:3000) |
+| ANTHROPIC_API_KEY | No | Enables AI Copilot features |
 
-## Deploy on Vercel
+## Docker
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker build -t accountos .
+docker run -p 3000:3000 --env-file .env accountos
+```

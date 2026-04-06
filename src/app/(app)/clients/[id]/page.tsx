@@ -18,15 +18,13 @@ import {
   AlertTriangle,
   Users,
 } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 import { cn, formatCurrency, formatDate, getScoreColor, getScoreBg } from '@/lib/utils';
+
+const ScoreTrendChart = dynamic(() => import('@/components/charts/ScoreTrendChart'), {
+  ssr: false,
+  loading: () => <div className="h-[280px] flex items-center justify-center text-[#829AB1] text-sm">Loading chart...</div>,
+});
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -422,44 +420,7 @@ function ScoreTab({
             Score History
           </h3>
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#00D4AA" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#00D4AA" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="date"
-                  tick={{ fill: '#829AB1', fontSize: 11 }}
-                  axisLine={{ stroke: '#1A3550' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tick={{ fill: '#829AB1', fontSize: 11 }}
-                  axisLine={{ stroke: '#1A3550' }}
-                  tickLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#0B1B2E',
-                    border: '1px solid #1A3550',
-                    borderRadius: '8px',
-                    color: '#F0F4F8',
-                    fontSize: '13px',
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#00D4AA"
-                  strokeWidth={2}
-                  fill="url(#scoreGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <ScoreTrendChart data={chartData.map(d => ({ month: d.date, score: d.score }))} />
           </div>
         </div>
       )}

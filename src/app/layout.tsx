@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ErrorBoundary from "@/components/layout/ErrorBoundary";
 
 export const metadata: Metadata = {
   title: "AccountOS",
@@ -28,8 +29,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full bg-background text-foreground font-sans antialiased">
-        {children}
+      <body className="h-full bg-[#050E1A] text-[#F0F4F8] antialiased" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

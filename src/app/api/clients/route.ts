@@ -1,90 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { auth } from '@/lib/auth';
-import { validateClient } from '@/lib/validators';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = request.nextUrl;
-    const search = searchParams.get('search');
-    const status = searchParams.get('status');
-
-    const where: Record<string, unknown> = {};
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { industry: { contains: search } },
-        { notes: { contains: search } },
-      ];
-    }
-
-    if (status) {
-      where.status = status;
-    }
-
     const clients = await prisma.client.findMany({
-      where,
       include: {
-        _count: {
-          select: { contacts: true },
+        scoreSnapshots: {
+          orderBy: { capturedAt: 'desc' },
+          take: 1,
         },
       },
-      orderBy: { updatedAt: 'desc' },
     });
 
-    return NextResponse.json(clients);
+    const result = clients.map(({ scoreSnapshots, ...client }) => ({
+      ...client,
+      currentScore: scoreSnapshots[0]?.overallScore ?? null,
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('GET /api/clients error:', error);
+    console.error('GET /clients error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
+const VALUE_OUTCOME_CATEGORIES = [
+  'risk_reduction',
+  'compliance',
+  'resilience',
+  'data_protection',
+  'incident_response',
+  'security_culture',
+] as const;
+
+const JOURNEY_PHASES = [
+  'CRA',
+  'Remediation',
+  'Implementation',
+  'Monitoring',
+  'Optimization',
+  'Maturity',
+] as const;
+
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
-    const validation = validateClient(body);
-    if (!validation.valid) {
-      return NextResponse.json({ errors: validation.errors }, { status: 400 });
+
+    if (!body.name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     const client = await prisma.client.create({
       data: {
         name: body.name,
-        status: body.status,
-        industry: body.industry,
-        website: body.website,
-        companySize: body.companySize,
-        source: body.source,
-        referredById: body.referredById,
-        notes: body.notes,
+        industry: body.industry ?? null,
+        size: body.size ?? null,
+        status: body.status ?? 'active',
+        tier: body.tier ?? null,
+        contactName: body.contactName ?? null,
+        contactEmail: body.contactEmail ?? null,
+        contactPhone: body.contactPhone ?? null,
+        logo: body.logo ?? null,
+        notes: body.notes ?? null,
         mrr: body.mrr ?? 0,
-        contractValue: body.contractValue ?? 0,
-        healthScore: body.healthScore ?? 50,
-        engagementScore: body.engagementScore ?? 50,
-        satisfactionScore: body.satisfactionScore,
-        paymentScore: body.paymentScore ?? 100,
-        adoptionScore: body.adoptionScore,
-        csmPulse: body.csmPulse ?? 50,
-        onboardedAt: body.onboardedAt ? new Date(body.onboardedAt) : undefined,
-        lastContactAt: body.lastContactAt ? new Date(body.lastContactAt) : undefined,
-        nextQbrDate: body.nextQbrDate ? new Date(body.nextQbrDate) : undefined,
+        contractEnd: body.contractEnd ? new Date(body.contractEnd) : null,
+        valueOutcomes: {
+          create: VALUE_OUTCOME_CATEGORIES.map((category) => ({
+            category,
+            score: 0,
+          })),
+        },
+        journeyPhases: {
+          create: JOURNEY_PHASES.map((phase, index) => ({
+            phase,
+            status: 'not_started',
+            order: index,
+          })),
+        },
+      },
+      include: {
+        valueOutcomes: true,
+        journeyPhases: { orderBy: { order: 'asc' } },
       },
     });
 
     return NextResponse.json(client, { status: 201 });
   } catch (error) {
-    console.error('POST /api/clients error:', error);
+    console.error('POST /clients error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

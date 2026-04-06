@@ -19,7 +19,7 @@ function run(cmd) {
 
 try {
   run('npx prisma generate');
-  run('npx prisma db push');
+  run('npx prisma db push --accept-data-loss');
   run('npx tsx prisma/seed.ts');
   console.log('\n✅ Database setup complete!');
 } catch (err) {

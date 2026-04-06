@@ -90,7 +90,7 @@ export default function ClientsPage() {
   useEffect(() => {
     fetch('/api/clients')
       .then((res) => res.json())
-      .then((data) => setClients(data.clients ?? []))
+      .then((data) => setClients(Array.isArray(data) ? data : data.clients ?? []))
       .catch(() => setClients([]))
       .finally(() => setLoading(false));
   }, []);

@@ -28,21 +28,19 @@ import { cn, formatCurrency, getScoreColor, getScoreLabel } from '@/lib/utils';
 // ---------------------------------------------------------------------------
 
 interface DashboardData {
-  metrics: {
-    totalClients: number;
-    averageScore: number;
-    monthlyRevenue: number;
-    openTasks: number;
-  };
-  scoreTrend: { month: string; score: number }[];
-  recentActivities: {
+  clientCount: number;
+  avgScore: number;
+  totalMrr: number;
+  openTasks: number;
+  scoreHistory: { month: string; score: number }[];
+  recentActivity: {
     id: string;
     type: string;
     title: string;
     clientName: string | null;
     createdAt: string;
   }[];
-  clientHealth: {
+  clientScores: {
     id: string;
     name: string;
     score: number;
@@ -151,7 +149,15 @@ export default function DashboardPage() {
     );
   }
 
-  const { metrics, scoreTrend, recentActivities, clientHealth } = data;
+  const metrics = {
+    totalClients: data.clientCount,
+    averageScore: data.avgScore,
+    monthlyRevenue: data.totalMrr,
+    openTasks: data.openTasks,
+  };
+  const scoreTrend = data.scoreHistory;
+  const recentActivities = data.recentActivity;
+  const clientHealth = data.clientScores;
 
   const scoreColor =
     metrics.averageScore <= 25

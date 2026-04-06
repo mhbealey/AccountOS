@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface DialogContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  triggerRef: React.MutableRefObject<HTMLButtonElement | null>;
 }
 
 const DialogContext = React.createContext<DialogContextValue | null>(null);
@@ -29,7 +29,7 @@ interface DialogProps {
 
 function Dialog({ children, open: controlledOpen, onOpenChange }: DialogProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null) as React.MutableRefObject<HTMLButtonElement | null>;
 
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;

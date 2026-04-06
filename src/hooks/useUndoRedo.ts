@@ -26,7 +26,7 @@ const MAX_HISTORY = 10;
 
 let past: UndoRedoOperation[] = [];
 let future: UndoRedoOperation[] = [];
-let listeners: Set<() => void> = new Set();
+const listeners: Set<() => void> = new Set();
 
 function getSnapshot(): UndoRedoSnapshot {
   return {

@@ -56,10 +56,10 @@ export async function GET() {
       if (!pipelineMap[deal.stage]) {
         pipelineMap[deal.stage] = { count: 0, value: 0, weighted: 0 };
       }
-      pipelineMap[deal.stage].count++;
-      pipelineMap[deal.stage].value += deal.value;
-      pipelineMap[deal.stage].weighted +=
-        (deal.value * deal.probability) / 100;
+      const entry = pipelineMap[deal.stage]!;
+      entry.count++;
+      entry.value += deal.value;
+      entry.weighted += (deal.value * deal.probability) / 100;
     }
     const pipeline = Object.entries(pipelineMap).map(([stage, data]) => ({
       stage,

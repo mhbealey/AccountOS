@@ -1,18 +1,18 @@
-# AccountOS v4
+# AccountOS
 
-Production-grade account management operating system for solo contract Account Managers. AI-enhanced relationship intelligence, not another CRM.
+Your second brain for client relationships. Built for independent contract account managers.
 
 ## Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript (strict)
-- **Styling**: Tailwind CSS v4 + shadcn/ui patterns
-- **Database**: SQLite via Prisma ORM v7
-- **Auth**: NextAuth.js v5 (JWT credentials)
-- **State**: Zustand (per-domain stores)
-- **AI**: Claude API (meeting prep, QBR generation, email drafts)
-- **Charts**: Recharts
-- **DnD**: @dnd-kit (Pipeline Kanban)
+- **Framework:** Next.js 15 (App Router)
+- **Language:** TypeScript (strict)
+- **Styling:** Tailwind CSS + shadcn/ui patterns
+- **State:** Zustand
+- **Database:** SQLite via Prisma
+- **Auth:** NextAuth v5
+- **AI:** Claude API (Anthropic SDK)
+- **Charts:** Recharts
+- **Fonts:** Outfit (body) + IBM Plex Mono (numbers/timestamps)
 
 ## Quick Start
 

@@ -151,7 +151,7 @@ export default function ProposalEditorPage({ params }: { params: Promise<{ id: s
     const newList = [...deliverables];
     const target = direction === 'up' ? index - 1 : index + 1;
     if (target < 0 || target >= newList.length) return;
-    [newList[index], newList[target]] = [newList[target], newList[index]];
+    [newList[index], newList[target]] = [newList[target]!, newList[index]!];
     setDeliverables(newList);
   };
 

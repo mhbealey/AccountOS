@@ -116,7 +116,7 @@ export default function CommandPalette() {
       setSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
     } else if (e.key === 'Enter' && filtered.length > 0) {
       e.preventDefault();
-      handleNavigate(filtered[selectedIndex].href);
+      handleNavigate(filtered[selectedIndex]!.href);
     }
   }
 

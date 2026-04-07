@@ -1,67 +1,85 @@
 'use client';
 
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
 
-function ChartTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { value: number }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-[#1A3550] bg-[#0B1B2E] px-3 py-2 text-sm shadow-lg">
-      <p className="text-[#829AB1]">{label}</p>
-      <p className="font-semibold text-[#00D4AA]">{payload[0].value}</p>
+const AreaChart = dynamic(
+  () => import('recharts').then((mod) => mod.AreaChart),
+  { ssr: false }
+);
+const Area = dynamic(
+  () => import('recharts').then((mod) => mod.Area),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import('recharts').then((mod) => mod.XAxis),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import('recharts').then((mod) => mod.YAxis),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import('recharts').then((mod) => mod.Tooltip),
+  { ssr: false }
+);
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((mod) => mod.ResponsiveContainer),
+  { ssr: false, loading: () => (
+    <div className="flex items-center justify-center" style={{ height: 300 }}>
+      <Loader2 className="h-6 w-6 animate-spin text-[#00D4AA]" />
     </div>
-  );
+  )}
+);
+
+interface ScoreTrendChartProps {
+  data: Array<{ label: string; value: number }>;
+  height?: number;
 }
 
-export default function ScoreTrendChart({ data }: { data: { month: string; score: number }[] }) {
+export default function ScoreTrendChart({ data, height = 300 }: ScoreTrendChartProps) {
   if (!data || data.length === 0) {
     return (
-      <p className="py-12 text-center text-sm text-[#829AB1]">
-        No score data available yet.
-      </p>
+      <div className="flex items-center justify-center text-[#829AB1] text-sm" style={{ height }}>
+        No data available
+      </div>
     );
   }
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={data}>
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#00D4AA" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="#00D4AA" stopOpacity={0} />
+            <stop offset="5%" stopColor="#00D4AA" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#00D4AA" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="month"
-          axisLine={false}
+          dataKey="label"
+          stroke="#829AB1"
+          fontSize={12}
           tickLine={false}
-          tick={{ fill: '#829AB1', fontSize: 12 }}
+          axisLine={false}
         />
         <YAxis
-          domain={[0, 100]}
-          axisLine={false}
+          stroke="#829AB1"
+          fontSize={12}
           tickLine={false}
-          tick={{ fill: '#829AB1', fontSize: 12 }}
-          width={32}
+          axisLine={false}
         />
-        <Tooltip content={<ChartTooltip />} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: '#0B1B2E',
+            border: '1px solid #1A3550',
+            borderRadius: '8px',
+            color: '#F0F4F8',
+            fontSize: 12,
+          }}
+        />
         <Area
           type="monotone"
-          dataKey="score"
+          dataKey="value"
           stroke="#00D4AA"
           strokeWidth={2}
           fill="url(#tealGradient)"

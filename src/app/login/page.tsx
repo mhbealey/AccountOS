@@ -2,12 +2,8 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { Lock, Mail, Shield } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,97 +19,73 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
+        callbackUrl: '/',
       });
 
       if (result?.error) {
         setError('Invalid email or password');
-      } else {
-        router.push('/');
+        setLoading(false);
+      } else if (result?.url) {
+        window.location.href = result.url;
       }
     } catch {
       setError('Something went wrong. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
 
-  const inputClass = cn(
-    'w-full bg-[#0D2137] border border-[#1A3550] rounded-lg px-4 py-3',
-    'text-[#F0F4F8] placeholder-[#829AB1]',
-    'focus:border-[#00D4AA] focus:outline-none transition-colors'
-  );
-
   return (
-    <div className="min-h-screen bg-[#050E1A] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo / Branding */}
+    <div className="flex items-center justify-center min-h-screen px-4" style={{ background: '#050E1A' }}>
+      <div className="w-full max-w-sm">
+        {/* Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#00D4AA]/10 mb-4">
-            <Shield className="w-7 h-7 text-[#00D4AA]" />
-          </div>
-          <h1 className="text-3xl font-bold text-[#F0F4F8] tracking-tight">
-            AccountOS
-          </h1>
-          <p className="text-[#829AB1] mt-1">Cyber Account Management</p>
+          <h1 className="text-3xl font-bold text-[#00D4AA] mb-2">AccountOS</h1>
+          <p className="text-[#829AB1] text-sm">Sign in to your account</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
+        {/* Card */}
+        <div className="bg-[#0B1B2E] border border-[#1A3550] rounded-xl p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-red-400 text-sm text-center">
+              <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
                 {error}
               </div>
             )}
 
-            {/* Email */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-[#829AB1]">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-[#F0F4F8] mb-1.5">
                 Email
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#829AB1]" />
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={cn(inputClass, 'pl-10')}
-                  required
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-lg bg-[#0D2137] border border-[#1A3550] text-[#F0F4F8] placeholder-[#829AB1]/50 text-sm focus:outline-none focus:border-[#00D4AA] transition-colors"
+                placeholder="you@example.com"
+              />
             </div>
 
-            {/* Password */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-[#829AB1]">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-[#F0F4F8] mb-1.5">
                 Password
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#829AB1]" />
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={cn(inputClass, 'pl-10')}
-                  required
-                />
-              </div>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-3 py-2 rounded-lg bg-[#0D2137] border border-[#1A3550] text-[#F0F4F8] placeholder-[#829AB1]/50 text-sm focus:outline-none focus:border-[#00D4AA] transition-colors"
+                placeholder="Enter your password"
+              />
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className={cn(
-                'w-full bg-[#00D4AA] text-[#050E1A] font-semibold rounded-lg px-4 py-3',
-                'hover:bg-[#00E8BC] transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+              className="w-full py-2.5 rounded-lg bg-[#00D4AA] text-[#050E1A] font-semibold text-sm hover:bg-[#00D4AA]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>

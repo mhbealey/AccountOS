@@ -3,388 +3,422 @@ import { hash } from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-function daysAgo(n: number): Date {
+function daysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d;
 }
 
-function daysFromNow(n: number): Date {
+function daysFromNow(n: number) {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return d;
 }
 
-function monthsAgo(n: number): Date {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d;
-}
-
 async function main() {
-  console.log('Seeding database...');
-
-  // ── Clear existing data (order matters for FK constraints) ──────────────
+  // Clear existing data
+  await prisma.auditLog.deleteMany();
+  await prisma.invoiceLineItem.deleteMany();
+  await prisma.timeEntry.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.stageChange.deleteMany();
+  await prisma.proposalDeliverable.deleteMany();
   await prisma.activity.deleteMany();
+  await prisma.deal.deleteMany();
+  await prisma.proposal.deleteMany();
+  await prisma.contract.deleteMany();
   await prisma.task.deleteMany();
+  await prisma.clientGoal.deleteMany();
   await prisma.clientService.deleteMany();
-  await prisma.service.deleteMany();
-  await prisma.scoreSnapshot.deleteMany();
-  await prisma.valueOutcome.deleteMany();
-  await prisma.journeyPhase.deleteMany();
+  await prisma.clientCompetitor.deleteMany();
+  await prisma.healthScoreSnapshot.deleteMany();
+  await prisma.note.deleteMany();
+  await prisma.contact.deleteMany();
+  await prisma.playbookStep.deleteMany();
+  await prisma.playbookExecution.deleteMany();
+  await prisma.playbook.deleteMany();
+  await prisma.template.deleteMany();
+  await prisma.snippet.deleteMany();
+  await prisma.expense.deleteMany();
+  await prisma.networkContact.deleteMany();
+  await prisma.metricSnapshot.deleteMany();
+  await prisma.healthScoreConfig.deleteMany();
   await prisma.client.deleteMany();
   await prisma.user.deleteMany();
 
-  // ── 1. User ─────────────────────────────────────────────────────────────
-  const hashedPassword = await hash('admin123', 10);
+  // User
+  const passwordHash = await hash('password123', 12);
   const user = await prisma.user.create({
     data: {
-      email: 'admin@accountos.app',
-      password: hashedPassword,
-      name: 'Admin',
+      email: 'admin@accountos.com',
+      passwordHash,
+      name: 'Admin User',
+      businessName: 'AccountOS Consulting',
+      defaultRate: 175,
+      goalAnnualRev: 1200000,
+      goalMonthlyHrs: 160,
     },
   });
-  console.log('Created user:', user.email);
 
-  // ── 2. Clients ──────────────────────────────────────────────────────────
-  const clientData = [
-    {
-      name: 'Meridian Capital Partners',
-      industry: 'Financial Services',
-      size: 'Enterprise',
-      status: 'active',
-      tier: 'Gold',
-      mrr: 15000,
-      contactName: 'Victoria Langford',
-      contactEmail: 'v.langford@meridiancapital.com',
-      contactPhone: '(212) 555-0190',
-    },
-    {
-      name: 'Atlas Healthcare Group',
-      industry: 'Healthcare',
-      size: 'Mid-Market',
-      status: 'active',
-      tier: 'Silver',
-      mrr: 8500,
-      contactName: 'Dr. Marcus Chen',
-      contactEmail: 'm.chen@atlashealthcare.com',
-      contactPhone: '(415) 555-0234',
-    },
-    {
-      name: 'Pinnacle Manufacturing',
-      industry: 'Manufacturing',
-      size: 'Mid-Market',
-      status: 'active',
-      tier: 'Silver',
-      mrr: 6000,
-      contactName: 'Robert Kowalski',
-      contactEmail: 'r.kowalski@pinnaclemfg.com',
-      contactPhone: '(312) 555-0178',
-    },
-    {
-      name: 'Horizon Tech Ventures',
-      industry: 'Technology',
-      size: 'SMB',
-      status: 'onboarding',
-      tier: 'Bronze',
-      mrr: 3500,
-      contactName: 'Priya Sharma',
-      contactEmail: 'p.sharma@horizontech.io',
-      contactPhone: '(650) 555-0312',
-    },
-    {
-      name: 'Summit Legal Associates',
-      industry: 'Legal',
-      size: 'SMB',
-      status: 'active',
-      tier: 'Bronze',
-      mrr: 4200,
-      contactName: 'James Whitfield',
-      contactEmail: 'j.whitfield@summitlegal.com',
-      contactPhone: '(202) 555-0145',
-    },
-    {
-      name: 'Coastal Retail Group',
-      industry: 'Retail',
-      size: 'Mid-Market',
-      status: 'active',
-      tier: 'Silver',
-      mrr: 7000,
-      contactName: 'Angela Torres',
-      contactEmail: 'a.torres@coastalretail.com',
-      contactPhone: '(305) 555-0267',
-    },
-  ] as const;
-
-  const clients = [];
-  for (const data of clientData) {
-    const client = await prisma.client.create({ data: { ...data } });
-    clients.push(client);
-  }
-  const [meridian, atlas, pinnacle, horizon, summit, coastal] = clients;
-  console.log(`Created ${clients.length} clients`);
-
-  // ── 3. Journey Phases ───────────────────────────────────────────────────
-  const phases = [
-    'CRA',
-    'Remediation',
-    'Implementation',
-    'Monitoring',
-    'Optimization',
-    'Maturity',
+  // Clients
+  const clientsData = [
+    { name: 'TechCorp Industries', status: 'Active', industry: 'Technology', tier: 'Enterprise', companySize: '1000-5000', mrr: 22000, contractValue: 264000, healthScore: 88, engagementScore: 85, paymentScore: 95, csmPulse: 90, source: 'Referral', onboardedAt: daysAgo(365), lastContactAt: daysAgo(2), nextQbrDate: daysFromNow(15) },
+    { name: 'Meridian Financial', status: 'Active', industry: 'Financial Services', tier: 'Enterprise', companySize: '5000+', mrr: 25000, contractValue: 300000, healthScore: 72, engagementScore: 65, paymentScore: 100, csmPulse: 70, source: 'Conference', onboardedAt: daysAgo(540), lastContactAt: daysAgo(8), nextQbrDate: daysFromNow(30) },
+    { name: 'Apex Healthcare', status: 'At-Risk', industry: 'Healthcare', tier: 'Mid-Market', companySize: '500-1000', mrr: 12000, contractValue: 144000, healthScore: 35, engagementScore: 30, paymentScore: 60, csmPulse: 25, source: 'Website', onboardedAt: daysAgo(200), lastContactAt: daysAgo(25), nextQbrDate: daysAgo(5) },
+    { name: 'Quantum Defense', status: 'Active', industry: 'Defense & Aerospace', tier: 'Enterprise', companySize: '1000-5000', mrr: 18000, contractValue: 216000, healthScore: 92, engagementScore: 90, paymentScore: 100, csmPulse: 95, source: 'Partner', onboardedAt: daysAgo(730), lastContactAt: daysAgo(1), nextQbrDate: daysFromNow(45) },
+    { name: 'NovaStar Retail', status: 'Onboarding', industry: 'Retail', tier: 'Mid-Market', companySize: '200-500', mrr: 8000, contractValue: 96000, healthScore: 60, engagementScore: 55, paymentScore: 100, csmPulse: 65, source: 'Outbound', onboardedAt: daysAgo(14), lastContactAt: daysAgo(1) },
+    { name: 'Atlas Manufacturing', status: 'Active', industry: 'Manufacturing', tier: 'SMB', companySize: '50-200', mrr: 5000, contractValue: 60000, healthScore: 78, engagementScore: 75, paymentScore: 90, csmPulse: 80, source: 'Referral', onboardedAt: daysAgo(180), lastContactAt: daysAgo(5), nextQbrDate: daysFromNow(20) },
+    { name: 'Pinnacle Logistics', status: 'Prospect', industry: 'Logistics', tier: 'Mid-Market', companySize: '500-1000', mrr: 0, contractValue: 0, healthScore: 50, engagementScore: 50, paymentScore: 100, csmPulse: 50, source: 'Conference', lastContactAt: daysAgo(3) },
   ];
 
-  // Status maps: how far each client has progressed
-  // completed phases, then in_progress, then not_started
-  const journeyProgress: Record<string, number> = {
-    // number = index of the in_progress phase (all before are completed)
-    [meridian.id]: 5,   // 0-4 completed, 5 (Maturity) in_progress
-    [atlas.id]: 3,      // 0-2 completed, 3 (Monitoring) in_progress
-    [pinnacle.id]: 2,   // 0-1 completed, 2 (Implementation) in_progress
-    [horizon.id]: 0,    // 0 (CRA) in_progress, rest not_started
-    [summit.id]: 4,     // 0-3 completed, 4 (Optimization) in_progress
-    [coastal.id]: 3,    // 0-2 completed, 3 (Monitoring) in_progress
-  };
-
-  for (const client of clients) {
-    const inProgressIdx = journeyProgress[client.id];
-    for (let i = 0; i < phases.length; i++) {
-      let status: string;
-      let startedAt: Date | null = null;
-      let completedAt: Date | null = null;
-
-      if (i < inProgressIdx) {
-        status = 'completed';
-        startedAt = monthsAgo(6 - i);
-        completedAt = monthsAgo(5 - i);
-      } else if (i === inProgressIdx) {
-        status = 'in_progress';
-        startedAt = monthsAgo(1);
-      } else {
-        status = 'not_started';
-      }
-
-      await prisma.journeyPhase.create({
-        data: {
-          clientId: client.id,
-          phase: phases[i],
-          status,
-          order: i + 1,
-          startedAt,
-          completedAt,
-        },
-      });
-    }
+  const clients: Record<string, string> = {};
+  for (const c of clientsData) {
+    const client = await prisma.client.create({ data: c });
+    clients[c.name] = client.id;
   }
-  console.log('Created journey phases');
 
-  // ── 4. Value Outcomes ───────────────────────────────────────────────────
-  const outcomeCategories = [
-    'risk_reduction',
-    'compliance',
-    'resilience',
-    'data_protection',
-    'incident_response',
-    'security_culture',
+  // Contacts
+  const contactsData = [
+    { clientName: 'TechCorp Industries', name: 'Sarah Chen', title: 'CISO', email: 'schen@techcorp.com', phone: '555-0101', role: 'Champion', sentiment: 'Positive', isPrimary: true, isExecutive: true },
+    { clientName: 'TechCorp Industries', name: 'Mike Rodriguez', title: 'VP Engineering', email: 'mrodriguez@techcorp.com', role: 'Technical Buyer', sentiment: 'Positive' },
+    { clientName: 'TechCorp Industries', name: 'Lisa Park', title: 'Security Analyst', email: 'lpark@techcorp.com', role: 'End User', sentiment: 'Neutral' },
+    { clientName: 'Meridian Financial', name: 'James Wilson', title: 'CTO', email: 'jwilson@meridianfin.com', phone: '555-0201', role: 'Economic Buyer', sentiment: 'Neutral', isPrimary: true, isExecutive: true },
+    { clientName: 'Meridian Financial', name: 'Angela Torres', title: 'Director of Security', email: 'atorres@meridianfin.com', role: 'Champion', sentiment: 'Positive' },
+    { clientName: 'Apex Healthcare', name: 'Dr. Robert Kim', title: 'CIO', email: 'rkim@apexhealth.com', phone: '555-0301', role: 'Economic Buyer', sentiment: 'Negative', isPrimary: true, isExecutive: true },
+    { clientName: 'Apex Healthcare', name: 'Patricia Nguyen', title: 'IT Manager', email: 'pnguyen@apexhealth.com', role: 'Technical Buyer', sentiment: 'Negative' },
+    { clientName: 'Quantum Defense', name: 'Col. David Brown', title: 'CISO', email: 'dbrown@quantumdef.com', phone: '555-0401', role: 'Champion', sentiment: 'Positive', isPrimary: true, isExecutive: true },
+    { clientName: 'Quantum Defense', name: 'Maria Garcia', title: 'Security Operations Lead', email: 'mgarcia@quantumdef.com', role: 'Technical Buyer', sentiment: 'Positive' },
+    { clientName: 'NovaStar Retail', name: 'Tom Anderson', title: 'CEO', email: 'tanderson@novastar.com', phone: '555-0501', role: 'Economic Buyer', sentiment: 'Positive', isPrimary: true, isExecutive: true },
+    { clientName: 'NovaStar Retail', name: 'Jenny Liu', title: 'IT Director', email: 'jliu@novastar.com', role: 'Champion', sentiment: 'Neutral' },
+    { clientName: 'Atlas Manufacturing', name: 'Bill Murphy', title: 'Owner/CEO', email: 'bmurphy@atlasmfg.com', phone: '555-0601', role: 'Economic Buyer', sentiment: 'Positive', isPrimary: true, isExecutive: true },
+    { clientName: 'Atlas Manufacturing', name: 'Karen White', title: 'Office Manager', email: 'kwhite@atlasmfg.com', role: 'End User', sentiment: 'Neutral' },
+    { clientName: 'Pinnacle Logistics', name: 'Steve Clark', title: 'VP Operations', email: 'sclark@pinnaclelogistics.com', phone: '555-0701', role: 'Economic Buyer', sentiment: 'Neutral', isPrimary: true },
   ];
 
-  const outcomeScores: Record<string, number[]> = {
-    [meridian.id]: [88, 92, 85, 90, 78, 82],
-    [atlas.id]: [72, 68, 65, 70, 60, 55],
-    [pinnacle.id]: [55, 48, 42, 50, 38, 35],
-    [horizon.id]: [20, 15, 18, 22, 10, 12],
-    [summit.id]: [78, 82, 75, 80, 72, 68],
-    [coastal.id]: [65, 70, 62, 68, 58, 55],
-  };
-
-  for (const client of clients) {
-    const scores = outcomeScores[client.id];
-    for (let i = 0; i < outcomeCategories.length; i++) {
-      await prisma.valueOutcome.create({
-        data: {
-          clientId: client.id,
-          category: outcomeCategories[i],
-          score: scores[i],
-        },
-      });
-    }
+  const contactIds: Record<string, string> = {};
+  for (const c of contactsData) {
+    const { clientName, ...data } = c;
+    const contact = await prisma.contact.create({
+      data: { ...data, clientId: clients[clientName], lastContactAt: daysAgo(Math.floor(Math.random() * 20)) },
+    });
+    contactIds[c.name] = contact.id;
   }
-  console.log('Created value outcomes');
 
-  // ── 5. Score Snapshots ──────────────────────────────────────────────────
-  // Current scores from outcomeScores; build 6 monthly snapshots trending upward
-  for (const client of clients) {
-    const currentScores = outcomeScores[client.id];
-    for (let month = 5; month >= 0; month--) {
-      // Each month back, reduce scores proportionally
-      const factor = 1 - month * 0.08; // 5 months ago = 60% of current, now = 100%
-      const riskReduction = Math.round(currentScores[0] * factor);
-      const compliance = Math.round(currentScores[1] * factor);
-      const resilience = Math.round(currentScores[2] * factor);
-      const dataProtection = Math.round(currentScores[3] * factor);
-      const incidentResponse = Math.round(currentScores[4] * factor);
-      const securityCulture = Math.round(currentScores[5] * factor);
-      const overallScore = Math.round(
-        (riskReduction + compliance + resilience + dataProtection + incidentResponse + securityCulture) / 6
-      );
-
-      await prisma.scoreSnapshot.create({
-        data: {
-          clientId: client.id,
-          overallScore,
-          riskReduction,
-          compliance,
-          resilience,
-          dataProtection,
-          incidentResponse,
-          securityCulture,
-          capturedAt: monthsAgo(month),
-        },
-      });
-    }
-  }
-  console.log('Created score snapshots');
-
-  // ── 6. Services ─────────────────────────────────────────────────────────
-  const serviceData = [
-    { name: 'Cyber Risk Assessment', category: 'Assessment' },
-    { name: 'Penetration Testing', category: 'Assessment' },
-    { name: '24/7 SOC Monitoring', category: 'Managed' },
-    { name: 'Endpoint Protection', category: 'Managed' },
-    { name: 'vCISO Services', category: 'Advisory' },
-    { name: 'Board Reporting', category: 'Advisory' },
-    { name: 'Security Awareness Training', category: 'Training' },
-    { name: 'Phishing Simulation', category: 'Training' },
-    { name: 'Compliance Gap Analysis', category: 'Compliance' },
-    { name: 'Policy Development', category: 'Compliance' },
-    { name: 'Incident Response Retainer', category: 'Incident' },
-    { name: 'Forensic Analysis', category: 'Incident' },
+  // Deals
+  const dealsData = [
+    { clientName: 'TechCorp Industries', title: 'Enterprise MDR Expansion', value: 350000, stage: 'Negotiation', probability: 75, closeDate: daysFromNow(20), nextStep: 'Final pricing review' },
+    { clientName: 'TechCorp Industries', title: 'Cloud Security Assessment', value: 45000, stage: 'Closed Won', probability: 100, actualCloseDate: daysAgo(30) },
+    { clientName: 'Meridian Financial', title: 'SOC-as-a-Service', value: 500000, stage: 'Proposal', probability: 50, closeDate: daysFromNow(45), nextStep: 'Present proposal to board' },
+    { clientName: 'Meridian Financial', title: 'Pen Testing Engagement', value: 75000, stage: 'Discovery', probability: 25, closeDate: daysFromNow(60) },
+    { clientName: 'Apex Healthcare', title: 'HIPAA Compliance Remediation', value: 120000, stage: 'Proposal', probability: 50, closeDate: daysFromNow(30) },
+    { clientName: 'Quantum Defense', title: 'Zero Trust Architecture', value: 280000, stage: 'Closed Won', probability: 100, actualCloseDate: daysAgo(60), winFactors: 'Strong relationship, technical expertise' },
+    { clientName: 'Quantum Defense', title: 'CMMC Level 3 Readiness', value: 180000, stage: 'Negotiation', probability: 75, closeDate: daysFromNow(15) },
+    { clientName: 'NovaStar Retail', title: 'PCI-DSS Compliance Program', value: 95000, stage: 'Lead', probability: 10, closeDate: daysFromNow(90) },
+    { clientName: 'Atlas Manufacturing', title: 'OT Security Assessment', value: 55000, stage: 'Discovery', probability: 25, closeDate: daysFromNow(45) },
+    { clientName: 'Pinnacle Logistics', title: 'Managed Security Services', value: 200000, stage: 'Lead', probability: 10, closeDate: daysFromNow(120) },
+    { clientName: 'Apex Healthcare', title: 'Incident Response Retainer', value: 60000, stage: 'Closed Lost', probability: 0, lostReason: 'Budget constraints', actualCloseDate: daysAgo(15) },
+    { clientName: 'Meridian Financial', title: 'vCISO Advisory', value: 150000, stage: 'Closed Won', probability: 100, actualCloseDate: daysAgo(90) },
   ];
 
-  const services = [];
-  for (const data of serviceData) {
-    const svc = await prisma.service.create({ data });
-    services.push(svc);
+  const dealIds: string[] = [];
+  for (const d of dealsData) {
+    const { clientName, ...data } = d;
+    const deal = await prisma.deal.create({
+      data: { ...data, clientId: clients[clientName] },
+    });
+    dealIds.push(deal.id);
   }
-  console.log(`Created ${services.length} services`);
 
-  // ── 7. Client-Service Assignments ───────────────────────────────────────
-  // [clientIndex, serviceIndex, status]
-  const assignments: [number, number, string][] = [
-    // Meridian — most active services (8 total, mostly active)
-    [0, 0, 'active'],
-    [0, 1, 'active'],
-    [0, 2, 'active'],
-    [0, 3, 'active'],
-    [0, 4, 'active'],
-    [0, 5, 'active'],
-    [0, 6, 'active'],
-    [0, 10, 'planned'],
-    // Atlas
-    [1, 0, 'active'],
-    [1, 2, 'active'],
-    [1, 3, 'active'],
-    [1, 6, 'active'],
-    [1, 8, 'planned'],
-    // Pinnacle
-    [2, 0, 'active'],
-    [2, 3, 'active'],
-    [2, 7, 'planned'],
-    [2, 9, 'planned'],
-    // Horizon — mostly opportunities (new client)
-    [3, 0, 'active'],
-    [3, 2, 'opportunity'],
-    [3, 4, 'opportunity'],
-    [3, 6, 'opportunity'],
-    [3, 8, 'opportunity'],
-    [3, 10, 'opportunity'],
-    // Summit
-    [4, 0, 'active'],
-    [4, 2, 'active'],
-    [4, 4, 'active'],
-    [4, 8, 'active'],
-    [4, 9, 'active'],
-    [4, 11, 'planned'],
-    // Coastal
-    [5, 0, 'active'],
-    [5, 2, 'active'],
-    [5, 3, 'active'],
-    [5, 6, 'planned'],
-    [5, 7, 'planned'],
-  ];
+  // Activities
+  const activityTypes = ['meeting', 'call', 'email', 'note'];
+  const sentiments = ['Positive', 'Neutral', 'Negative', null];
+  const clientNames = Object.keys(clients);
 
-  for (const [ci, si, status] of assignments) {
-    await prisma.clientService.create({
+  for (let i = 0; i < 50; i++) {
+    const clientName = clientNames[i % clientNames.length];
+    const type = activityTypes[i % activityTypes.length];
+    const titles: Record<string, string[]> = {
+      meeting: ['QBR Meeting', 'Security Review', 'Onboarding Session', 'Executive Briefing', 'Roadmap Discussion'],
+      call: ['Check-in Call', 'Support Call', 'Escalation Call', 'Follow-up Call', 'Demo Call'],
+      email: ['Proposal Follow-up', 'Weekly Update', 'Incident Report', 'Renewal Reminder', 'Thank You Note'],
+      note: ['Client Feedback', 'Internal Note', 'Action Items', 'Risk Assessment', 'Opportunity Identified'],
+    };
+    await prisma.activity.create({
       data: {
-        clientId: clients[ci].id,
-        serviceId: services[si].id,
-        status,
+        clientId: clients[clientName],
+        type,
+        title: titles[type][i % 5],
+        description: `${type} activity with ${clientName}`,
+        date: daysAgo(Math.floor(Math.random() * 60)),
+        duration: type === 'meeting' ? 60 : type === 'call' ? 30 : undefined,
+        sentiment: sentiments[i % sentiments.length],
+        isKeyMoment: i % 10 === 0,
+        isProactive: i % 3 !== 0,
       },
     });
   }
-  console.log(`Created ${assignments.length} client-service records`);
 
-  // ── 8. Tasks ────────────────────────────────────────────────────────────
-  const tasks = [
-    { title: 'Review firewall rules', description: 'Audit inbound/outbound rules for Meridian perimeter firewalls', status: 'in_progress', priority: 'urgent', dueDate: daysAgo(1), clientId: meridian.id },
-    { title: 'Schedule CRA follow-up', description: 'Book follow-up meeting to discuss CRA findings', status: 'todo', priority: 'high', dueDate: daysFromNow(3), clientId: horizon.id },
-    { title: 'Update incident response plan', description: 'Revise IRP with lessons learned from Q1 tabletop exercise', status: 'in_progress', priority: 'high', dueDate: daysFromNow(7), clientId: summit.id },
-    { title: 'Deploy endpoint agents', description: 'Roll out EDR agents to remaining 45 workstations', status: 'todo', priority: 'medium', dueDate: daysFromNow(14), clientId: pinnacle.id },
-    { title: 'Prepare board security briefing', description: 'Create executive summary for Q2 board presentation', status: 'todo', priority: 'high', dueDate: daysFromNow(21), clientId: meridian.id },
-    { title: 'Conduct phishing simulation', description: 'Launch Q2 phishing campaign across all departments', status: 'done', priority: 'medium', dueDate: daysAgo(5), clientId: atlas.id },
-    { title: 'Review SOC alert thresholds', description: 'Tune SIEM correlation rules to reduce false positives', status: 'in_progress', priority: 'medium', dueDate: daysFromNow(5), clientId: coastal.id },
-    { title: 'Complete compliance gap analysis', description: 'Finalize PCI-DSS gap analysis report', status: 'done', priority: 'high', dueDate: daysAgo(10), clientId: coastal.id },
-    { title: 'Onboard Horizon to SOC', description: 'Set up log forwarding and initial SIEM configuration', status: 'todo', priority: 'urgent', dueDate: daysFromNow(2), clientId: horizon.id },
-    { title: 'Renew penetration testing scope', description: 'Define scope for annual external pen test', status: 'todo', priority: 'medium', dueDate: daysFromNow(30), clientId: meridian.id },
-    { title: 'Patch critical vulnerabilities', description: 'Apply emergency patches for CVE-2026-1234', status: 'done', priority: 'urgent', dueDate: daysAgo(3), clientId: atlas.id },
-    { title: 'Draft security policies', description: 'Create acceptable use and data classification policies', status: 'in_progress', priority: 'medium', dueDate: daysFromNow(10), clientId: pinnacle.id },
-    { title: 'Configure MFA enrollment', description: 'Enable MFA for all admin and privileged accounts', status: 'todo', priority: 'high', dueDate: daysFromNow(5), clientId: horizon.id },
-    { title: 'Review access control lists', description: 'Quarterly review of user permissions and service accounts', status: 'todo', priority: 'low', dueDate: daysFromNow(45), clientId: summit.id },
-    { title: 'Update network diagrams', description: 'Reflect recent infrastructure changes in network documentation', status: 'done', priority: 'low', dueDate: daysAgo(7), clientId: meridian.id },
+  // Tasks
+  const taskCategories = ['Follow-up', 'Delivery', 'Administrative', 'Sales', 'Support'];
+  const priorities = ['Urgent', 'High', 'Medium', 'Low'];
+  const taskTitles = [
+    'Send QBR report', 'Schedule executive review', 'Update security roadmap', 'Prepare proposal',
+    'Review SLA metrics', 'Follow up on escalation', 'Complete risk assessment', 'Renew contract',
+    'Update client portal', 'Create incident report', 'Plan security awareness training',
+    'Review vulnerability scan results', 'Update compliance documentation', 'Prepare monthly report',
+    'Schedule penetration test', 'Review access controls', 'Update disaster recovery plan',
+    'Conduct security audit', 'Prepare board presentation', 'Review insurance requirements',
+    'Update SOW', 'Schedule team training', 'Review vendor assessments', 'Prepare RFP response',
   ];
 
-  for (const data of tasks) {
-    await prisma.task.create({ data });
+  for (let i = 0; i < taskTitles.length; i++) {
+    const isCompleted = i < 8;
+    const clientName = clientNames[i % clientNames.length];
+    await prisma.task.create({
+      data: {
+        title: taskTitles[i],
+        clientId: clients[clientName],
+        priority: priorities[i % priorities.length],
+        status: isCompleted ? 'completed' : 'open',
+        category: taskCategories[i % taskCategories.length],
+        dueDate: isCompleted ? daysAgo(Math.floor(Math.random() * 10)) : daysFromNow(Math.floor(Math.random() * 30)),
+        completedAt: isCompleted ? daysAgo(Math.floor(Math.random() * 5)) : undefined,
+        sortOrder: i,
+      },
+    });
   }
-  console.log(`Created ${tasks.length} tasks`);
 
-  // ── 9. Activities ───────────────────────────────────────────────────────
-  const activities = [
-    { clientId: meridian.id, type: 'meeting', title: 'Quarterly business review', details: 'Reviewed security posture improvements and upcoming initiatives', createdAt: daysAgo(2) },
-    { clientId: meridian.id, type: 'score_update', title: 'Overall score increased to 86', details: 'Compliance score jumped 5 points after policy rollout', createdAt: daysAgo(5) },
-    { clientId: meridian.id, type: 'email', title: 'Sent board briefing draft', details: 'Emailed Q2 security briefing draft to Victoria for review', createdAt: daysAgo(8) },
-    { clientId: atlas.id, type: 'call', title: 'Phishing simulation debrief', details: 'Discussed results of Q2 phishing campaign — 12% click rate, down from 28%', createdAt: daysAgo(1) },
-    { clientId: atlas.id, type: 'journey_update', title: 'Monitoring phase started', details: 'Implementation phase completed; transitioned to continuous monitoring', createdAt: daysAgo(6) },
-    { clientId: atlas.id, type: 'note', title: 'Expansion opportunity noted', details: 'Dr. Chen mentioned interest in vCISO services for new clinic locations', createdAt: daysAgo(10) },
-    { clientId: pinnacle.id, type: 'meeting', title: 'Implementation kickoff', details: 'Kicked off endpoint protection deployment with IT team', createdAt: daysAgo(3) },
-    { clientId: pinnacle.id, type: 'email', title: 'Sent deployment schedule', details: 'Shared phased rollout plan for EDR agents across manufacturing floor', createdAt: daysAgo(7) },
-    { clientId: pinnacle.id, type: 'note', title: 'OT network concerns flagged', details: 'Robert raised concerns about agent impact on SCADA systems', createdAt: daysAgo(12) },
-    { clientId: horizon.id, type: 'meeting', title: 'Onboarding kickoff call', details: 'Initial meeting with Priya and team to scope CRA engagement', createdAt: daysAgo(1) },
-    { clientId: horizon.id, type: 'email', title: 'Welcome package sent', details: 'Sent onboarding documentation and data collection questionnaire', createdAt: daysAgo(2) },
-    { clientId: horizon.id, type: 'note', title: 'Startup environment assessment', details: 'Cloud-native stack, minimal existing security controls, high growth rate', createdAt: daysAgo(4) },
-    { clientId: summit.id, type: 'call', title: 'Compliance review call', details: 'Reviewed SOC 2 Type II readiness and remaining gaps', createdAt: daysAgo(3) },
-    { clientId: summit.id, type: 'score_update', title: 'Compliance score updated to 82', details: 'Policy development completion drove compliance improvement', createdAt: daysAgo(9) },
-    { clientId: summit.id, type: 'journey_update', title: 'Optimization phase initiated', details: 'Client progressed to optimization after completing monitoring milestones', createdAt: daysAgo(14) },
-    { clientId: coastal.id, type: 'meeting', title: 'PCI-DSS gap analysis review', details: 'Presented gap analysis findings and remediation roadmap', createdAt: daysAgo(2) },
-    { clientId: coastal.id, type: 'call', title: 'SOC onboarding check-in', details: 'Verified log ingestion from all 12 retail locations', createdAt: daysAgo(6) },
-    { clientId: coastal.id, type: 'email', title: 'Monthly security report sent', details: 'Delivered March security operations summary report', createdAt: daysAgo(8) },
-    { clientId: meridian.id, type: 'note', title: 'Contract renewal discussion', details: 'Victoria indicated interest in upgrading to Platinum tier at renewal', createdAt: daysAgo(15) },
-    { clientId: atlas.id, type: 'meeting', title: 'Incident response tabletop', details: 'Conducted ransomware scenario tabletop exercise with leadership team', createdAt: daysAgo(18) },
+  // Time Entries
+  const timeCategories = ['Consulting', 'Implementation', 'Support', 'Assessment', 'Training'];
+  for (let i = 0; i < 20; i++) {
+    const clientName = clientNames[i % clientNames.length];
+    await prisma.timeEntry.create({
+      data: {
+        clientId: clients[clientName],
+        description: `${timeCategories[i % timeCategories.length]} work for ${clientName}`,
+        hours: [0.5, 1, 1.5, 2, 3, 4, 6, 8][i % 8],
+        rate: 175,
+        date: daysAgo(Math.floor(Math.random() * 30)),
+        category: timeCategories[i % timeCategories.length],
+        billable: i % 5 !== 0,
+      },
+    });
+  }
+
+  // Invoices
+  const invoicesData = [
+    { clientName: 'TechCorp Industries', number: 'INV-001', amount: 22000, status: 'Paid', issuedDate: daysAgo(60), dueDate: daysAgo(30), paidDate: daysAgo(25), paymentMethod: 'ACH' },
+    { clientName: 'Meridian Financial', number: 'INV-002', amount: 25000, status: 'Paid', issuedDate: daysAgo(45), dueDate: daysAgo(15), paidDate: daysAgo(12), paymentMethod: 'Wire' },
+    { clientName: 'Apex Healthcare', number: 'INV-003', amount: 12000, status: 'Overdue', issuedDate: daysAgo(45), dueDate: daysAgo(15) },
+    { clientName: 'Quantum Defense', number: 'INV-004', amount: 18000, status: 'Sent', issuedDate: daysAgo(10), dueDate: daysFromNow(20) },
+    { clientName: 'Atlas Manufacturing', number: 'INV-005', amount: 5000, status: 'Draft', issuedDate: new Date(), dueDate: daysFromNow(30) },
+    { clientName: 'TechCorp Industries', number: 'INV-006', amount: 45000, status: 'Sent', issuedDate: daysAgo(5), dueDate: daysFromNow(25) },
   ];
 
-  for (const data of activities) {
-    await prisma.activity.create({ data });
+  for (const inv of invoicesData) {
+    const { clientName, ...data } = inv;
+    const invoice = await prisma.invoice.create({
+      data: { ...data, clientId: clients[clientName], terms: 'Net 30' },
+    });
+    // Line items
+    await prisma.invoiceLineItem.create({
+      data: { invoiceId: invoice.id, description: 'Monthly Managed Security Services', quantity: 1, unitPrice: data.amount * 0.7, amount: data.amount * 0.7, sortOrder: 0 },
+    });
+    await prisma.invoiceLineItem.create({
+      data: { invoiceId: invoice.id, description: 'Additional Consulting Hours', quantity: Math.ceil(data.amount * 0.3 / 175), unitPrice: 175, amount: data.amount * 0.3, sortOrder: 1 },
+    });
   }
-  console.log(`Created ${activities.length} activities`);
 
-  console.log('Seeding complete!');
+  // Contracts
+  const contractsData = [
+    { clientName: 'TechCorp Industries', title: 'Master Services Agreement', type: 'MSA', status: 'Active', startDate: daysAgo(365), endDate: daysFromNow(365), value: 264000, monthlyValue: 22000, renewalType: 'Auto-Renew' },
+    { clientName: 'Meridian Financial', title: 'Enterprise Security Agreement', type: 'MSA', status: 'Active', startDate: daysAgo(540), endDate: daysFromNow(25), value: 300000, monthlyValue: 25000, renewalType: 'Manual', reminderDays: 30 },
+    { clientName: 'Quantum Defense', title: 'Government Security Contract', type: 'Fixed-Price', status: 'Active', startDate: daysAgo(180), endDate: daysFromNow(180), value: 216000, monthlyValue: 18000, renewalType: 'Auto-Renew' },
+    { clientName: 'NovaStar Retail', title: 'Onboarding SOW', type: 'SOW', status: 'Draft', startDate: new Date(), value: 96000, monthlyValue: 8000 },
+  ];
+
+  for (const c of contractsData) {
+    const { clientName, ...data } = c;
+    await prisma.contract.create({ data: { ...data, clientId: clients[clientName] } });
+  }
+
+  // Proposals
+  const proposalsData = [
+    { clientName: 'Meridian Financial', title: 'SOC-as-a-Service Proposal', status: 'Sent', investment: 500000, executiveSummary: 'Comprehensive 24/7 SOC monitoring and incident response', sentAt: daysAgo(10), validUntil: daysFromNow(20) },
+    { clientName: 'Apex Healthcare', title: 'HIPAA Compliance Remediation', status: 'Draft', investment: 120000, executiveSummary: 'Full HIPAA compliance gap assessment and remediation plan' },
+    { clientName: 'Pinnacle Logistics', title: 'Managed Security Services', status: 'Draft', investment: 200000, executiveSummary: 'End-to-end managed security for logistics operations' },
+  ];
+
+  for (const p of proposalsData) {
+    const { clientName, ...data } = p;
+    const proposal = await prisma.proposal.create({ data: { ...data, clientId: clients[clientName] } });
+    await prisma.proposalDeliverable.create({ data: { proposalId: proposal.id, title: 'Discovery & Assessment', description: 'Initial security posture assessment', sortOrder: 0 } });
+    await prisma.proposalDeliverable.create({ data: { proposalId: proposal.id, title: 'Implementation', description: 'Deploy and configure security controls', sortOrder: 1 } });
+    await prisma.proposalDeliverable.create({ data: { proposalId: proposal.id, title: 'Ongoing Management', description: 'Continuous monitoring and optimization', sortOrder: 2 } });
+  }
+
+  // Client Goals
+  const goalsPerClient: Record<string, Array<{ title: string; status: string; targetValue: number; currentValue: number; unit: string; targetMetric: string }>> = {
+    'TechCorp Industries': [
+      { title: 'Reduce Mean Time to Detect', status: 'In Progress', targetValue: 15, currentValue: 22, unit: 'minutes', targetMetric: 'MTTD' },
+      { title: 'Achieve SOC 2 Type II', status: 'Achieved', targetValue: 100, currentValue: 100, unit: '%', targetMetric: 'Compliance' },
+      { title: 'Reduce Vulnerability Count', status: 'In Progress', targetValue: 50, currentValue: 120, unit: 'vulnerabilities', targetMetric: 'Critical Vulns' },
+    ],
+    'Meridian Financial': [
+      { title: 'PCI-DSS Compliance', status: 'In Progress', targetValue: 100, currentValue: 78, unit: '%', targetMetric: 'Compliance Score' },
+      { title: 'Security Awareness Score', status: 'At Risk', targetValue: 90, currentValue: 55, unit: '%', targetMetric: 'Phishing Test Pass Rate' },
+    ],
+    'Apex Healthcare': [
+      { title: 'HIPAA Compliance', status: 'At Risk', targetValue: 100, currentValue: 45, unit: '%', targetMetric: 'Compliance' },
+      { title: 'Incident Response Time', status: 'In Progress', targetValue: 30, currentValue: 120, unit: 'minutes', targetMetric: 'MTTR' },
+    ],
+    'Quantum Defense': [
+      { title: 'CMMC Level 3 Certification', status: 'In Progress', targetValue: 100, currentValue: 82, unit: '%', targetMetric: 'Readiness Score' },
+      { title: 'Zero Trust Implementation', status: 'In Progress', targetValue: 100, currentValue: 65, unit: '%', targetMetric: 'ZT Score' },
+      { title: 'Supply Chain Security', status: 'Achieved', targetValue: 100, currentValue: 100, unit: '%', targetMetric: 'Vendor Assessment' },
+    ],
+  };
+
+  for (const [clientName, goals] of Object.entries(goalsPerClient)) {
+    for (const g of goals) {
+      await prisma.clientGoal.create({
+        data: {
+          clientId: clients[clientName],
+          ...g,
+          baselineValue: g.currentValue * 1.5,
+          quarter: 'Q2 2026',
+          dueDate: daysFromNow(90),
+          achievedAt: g.status === 'Achieved' ? daysAgo(30) : undefined,
+        },
+      });
+    }
+  }
+
+  // Client Services
+  const servicesByClient: Record<string, Array<{ serviceName: string; category: string; status: string; revenue: number }>> = {
+    'TechCorp Industries': [
+      { serviceName: 'Managed Detection & Response', category: 'Security Operations', status: 'Active', revenue: 12000 },
+      { serviceName: 'Vulnerability Management', category: 'Risk Management', status: 'Active', revenue: 5000 },
+      { serviceName: 'Compliance Advisory', category: 'Compliance', status: 'Active', revenue: 5000 },
+    ],
+    'Meridian Financial': [
+      { serviceName: 'vCISO Advisory', category: 'Strategy', status: 'Active', revenue: 15000 },
+      { serviceName: 'Penetration Testing', category: 'Assessment', status: 'Active', revenue: 5000 },
+      { serviceName: 'Security Awareness Training', category: 'Training', status: 'Active', revenue: 5000 },
+    ],
+    'Apex Healthcare': [
+      { serviceName: 'HIPAA Compliance', category: 'Compliance', status: 'Active', revenue: 8000 },
+      { serviceName: 'Managed Firewall', category: 'Security Operations', status: 'At-Risk', revenue: 4000 },
+    ],
+    'Quantum Defense': [
+      { serviceName: 'CMMC Readiness', category: 'Compliance', status: 'Active', revenue: 10000 },
+      { serviceName: 'Zero Trust Architecture', category: 'Strategy', status: 'Active', revenue: 8000 },
+    ],
+    'NovaStar Retail': [
+      { serviceName: 'PCI-DSS Compliance', category: 'Compliance', status: 'Onboarding', revenue: 5000 },
+      { serviceName: 'Endpoint Protection', category: 'Security Operations', status: 'Onboarding', revenue: 3000 },
+    ],
+    'Atlas Manufacturing': [
+      { serviceName: 'OT Security Monitoring', category: 'Security Operations', status: 'Active', revenue: 3000 },
+      { serviceName: 'Incident Response Retainer', category: 'Response', status: 'Active', revenue: 2000 },
+    ],
+  };
+
+  for (const [clientName, services] of Object.entries(servicesByClient)) {
+    for (const s of services) {
+      await prisma.clientService.create({
+        data: { ...s, clientId: clients[clientName], startDate: daysAgo(180) },
+      });
+    }
+  }
+
+  // Health Score Snapshots
+  for (const [clientName, clientId] of Object.entries(clients)) {
+    const baseScore = clientsData.find(c => c.name === clientName)?.healthScore ?? 50;
+    for (let i = 3; i >= 0; i--) {
+      const variance = Math.floor(Math.random() * 10) - 5;
+      await prisma.healthScoreSnapshot.create({
+        data: {
+          clientId,
+          score: Math.max(10, Math.min(100, baseScore + variance - i * 3)),
+          engagement: Math.max(10, Math.min(100, baseScore + variance - 5)),
+          payment: Math.max(10, Math.min(100, baseScore + variance + 10)),
+          csmPulse: Math.max(10, Math.min(100, baseScore + variance)),
+          recordedAt: daysAgo(i * 30),
+        },
+      });
+    }
+  }
+
+  // Playbooks
+  const onboarding = await prisma.playbook.create({
+    data: { name: 'New Client Onboarding', description: 'Standard onboarding process for new clients', trigger: 'client_created' },
+  });
+  const onboardingSteps = ['Welcome call & kickoff', 'Send security questionnaire', 'Initial risk assessment', 'Deploy monitoring agents', 'Configure alerting thresholds', 'First monthly review'];
+  for (let i = 0; i < onboardingSteps.length; i++) {
+    await prisma.playbookStep.create({
+      data: { playbookId: onboarding.id, title: onboardingSteps[i], dayOffset: i * 3, sortOrder: i },
+    });
+  }
+
+  const qbr = await prisma.playbook.create({
+    data: { name: 'QBR Preparation', description: 'Quarterly business review preparation checklist', trigger: 'qbr_upcoming' },
+  });
+  const qbrSteps = ['Pull metrics & KPIs', 'Prepare executive summary', 'Draft recommendations', 'Schedule QBR meeting', 'Send pre-read materials'];
+  for (let i = 0; i < qbrSteps.length; i++) {
+    await prisma.playbookStep.create({
+      data: { playbookId: qbr.id, title: qbrSteps[i], dayOffset: i * 2, sortOrder: i },
+    });
+  }
+
+  const churn = await prisma.playbook.create({
+    data: { name: 'Churn Prevention', description: 'Intervention playbook for at-risk clients', trigger: 'health_drop' },
+  });
+  const churnSteps = ['Immediate executive outreach', 'Root cause analysis', 'Create remediation plan', 'Daily check-ins for 2 weeks', 'Post-recovery review'];
+  for (let i = 0; i < churnSteps.length; i++) {
+    await prisma.playbookStep.create({
+      data: { playbookId: churn.id, title: churnSteps[i], dayOffset: i, taskPriority: 'Urgent', sortOrder: i },
+    });
+  }
+
+  // Templates
+  await prisma.template.create({ data: { name: 'QBR Agenda', category: 'Meeting', subject: 'Quarterly Business Review - {{clientName}}', body: 'Dear {{contactName}},\n\nPlease find the agenda for our upcoming QBR:\n\n1. Performance Review\n2. Security Metrics\n3. Roadmap Discussion\n4. Action Items\n\nBest regards' } });
+  await prisma.template.create({ data: { name: 'Monthly Report', category: 'Report', subject: 'Monthly Security Report - {{clientName}}', body: 'Security Highlights:\n- Incidents detected: {{incidents}}\n- Vulnerabilities remediated: {{vulns}}\n- Compliance score: {{compliance}}%\n\nKey Recommendations:\n{{recommendations}}' } });
+  await prisma.template.create({ data: { name: 'Welcome Email', category: 'Onboarding', subject: 'Welcome to AccountOS Security Services', body: 'Dear {{contactName}},\n\nWelcome aboard! We are thrilled to partner with {{clientName}} on your cybersecurity journey.\n\nYour dedicated team is ready to begin the onboarding process.\n\nBest regards' } });
+
+  // Snippets
+  await prisma.snippet.create({ data: { title: 'Incident Response Process', category: 'Security', content: 'Our incident response follows NIST SP 800-61: Preparation, Detection, Containment, Eradication, Recovery, Lessons Learned.', tags: 'IR,NIST,process' } });
+  await prisma.snippet.create({ data: { title: 'Compliance Frameworks', category: 'Compliance', content: 'We support SOC 2, HIPAA, PCI-DSS, CMMC, NIST CSF, and ISO 27001 compliance programs.', tags: 'compliance,frameworks' } });
+
+  // Network Contacts
+  await prisma.networkContact.create({ data: { name: 'Alex Thompson', company: 'CyberVault Inc', title: 'CEO', email: 'alex@cybervault.com', relationship: 'Partner', source: 'Conference', tags: 'partner,referral', lastContactAt: daysAgo(10) } });
+  await prisma.networkContact.create({ data: { name: 'Diana Martinez', company: 'InsureTech Corp', title: 'VP Sales', email: 'diana@insuretech.com', relationship: 'Prospect', source: 'LinkedIn', tags: 'prospect,insurance', lastContactAt: daysAgo(20) } });
+  await prisma.networkContact.create({ data: { name: 'Chris Lee', company: 'ThreatHunter Labs', title: 'CTO', email: 'chris@threathunter.com', relationship: 'Vendor', source: 'Referral', tags: 'vendor,technology', lastContactAt: daysAgo(5) } });
+
+  // Competitors
+  await prisma.clientCompetitor.create({ data: { clientId: clients['Apex Healthcare'], name: 'CrowdStrike', services: 'MDR, EDR', threatLevel: 'High', notes: 'Actively pitching to their CISO' } });
+  await prisma.clientCompetitor.create({ data: { clientId: clients['Meridian Financial'], name: 'Palo Alto Networks', services: 'SASE, Firewall', threatLevel: 'Medium', notes: 'Existing firewall vendor' } });
+
+  // Health Score Config
+  await prisma.healthScoreConfig.create({
+    data: { engagementWeight: 25, satisfactionWeight: 20, paymentWeight: 20, adoptionWeight: 15, csmPulseWeight: 20 },
+  });
+
+  console.log('Seed data created successfully!');
+  console.log(`  - 1 user`);
+  console.log(`  - ${clientsData.length} clients`);
+  console.log(`  - ${contactsData.length} contacts`);
+  console.log(`  - ${dealsData.length} deals`);
+  console.log(`  - 50 activities`);
+  console.log(`  - ${taskTitles.length} tasks`);
+  console.log(`  - 20 time entries`);
+  console.log(`  - ${invoicesData.length} invoices`);
+  console.log(`  - ${contractsData.length} contracts`);
+  console.log(`  - ${proposalsData.length} proposals`);
+  console.log(`  - 3 playbooks`);
+  console.log(`  - 3 templates`);
 }
 
 main()
-  .catch((e) => {
-    console.error('Seed error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch(console.error)
+  .finally(() => prisma.$disconnect());

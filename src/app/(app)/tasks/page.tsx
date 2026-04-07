@@ -1,318 +1,363 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Circle, CheckCircle2, Trash2, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState, useEffect, useMemo, KeyboardEvent } from 'react';
+import {
+  CheckSquare,
+  Plus,
+  X,
+  Calendar,
+  AlertCircle,
+  BookOpen,
+  Filter,
+} from 'lucide-react';
+import { cn, formatDate, getPriorityColor } from '@/lib/utils';
 
-type Task = {
+interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in_progress' | 'done';
-  priority: 'urgent' | 'high' | 'medium' | 'low';
-  dueDate: string | null;
-  clientId: string | null;
-  clientName: string | null;
-  createdAt: string;
-};
+  clientId: string;
+  clientName: string;
+  priority: string;
+  status: string;
+  category: string;
+  dueDate: string;
+  completedAt: string | null;
+  recurring: boolean;
+  playbook: string | null;
+  playbookStep: string | null;
+}
 
-type FilterTab = 'all' | 'todo' | 'in_progress' | 'done';
+const priorityOptions = ['Urgent', 'High', 'Medium', 'Low'];
 
-const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'todo', label: 'To Do' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'done', label: 'Done' },
-];
+function getPriorityBadgeColor(priority: string): string {
+  const map: Record<string, string> = {
+    Urgent: 'bg-red-500/10 text-red-400 border-red-500/20',
+    High: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    Medium: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+    Low: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  };
+  return map[priority] ?? 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+}
 
-const PRIORITY_STYLES: Record<string, string> = {
-  urgent: 'bg-[#FF6B6B]/20 text-[#FF6B6B]',
-  high: 'bg-[#FFB347]/20 text-[#FFB347]',
-  medium: 'bg-[#829AB1]/20 text-[#829AB1]',
-  low: 'bg-[#829AB1]/10 text-[#829AB1]/70',
-};
-
-function isOverdue(dueDate: string | null): boolean {
-  if (!dueDate) return false;
+function isOverdue(dueDate: string): boolean {
   return new Date(dueDate) < new Date(new Date().toDateString());
 }
 
-function formatDue(dueDate: string): string {
+function isToday(dueDate: string): boolean {
   const d = new Date(dueDate);
   const now = new Date();
-  const diffMs = d.getTime() - new Date(now.toDateString()).getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays === -1) return 'Yesterday';
-  if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-  if (diffDays <= 7) return `In ${diffDays}d`;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toDateString() === now.toDateString();
 }
+
+function isThisWeek(dueDate: string): boolean {
+  const d = new Date(dueDate);
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+  return d >= startOfWeek && d < endOfWeek;
+}
+
+type TabKey = 'today' | 'week' | 'all' | 'overdue';
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [filter, setFilter] = useState<FilterTab>('all');
-  const [newTitle, setNewTitle] = useState('');
   const [loading, setLoading] = useState(true);
-  const [swipedId, setSwipedId] = useState<string | null>(null);
-  const touchStartX = useRef(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('today');
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const fetchTasks = useCallback(async () => {
-    try {
-      const res = await fetch('/api/tasks');
-      const data = await res.json();
-      setTasks(Array.isArray(data) ? data : data.tasks ?? []);
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Inline add state
+  const [newTitle, setNewTitle] = useState('');
+  const [newPriority, setNewPriority] = useState('Medium');
+  const [newClient, setNewClient] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    fetch('/api/v1/tasks')
+      .then((r) => r.json())
+      .then((data) => {
+        setTasks(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
-  const addTask = async () => {
-    const title = newTitle.trim();
-    if (!title) return;
+  const clients = useMemo(() => {
+    const map = new Map<string, string>();
+    tasks.forEach((t) => {
+      if (t.clientId && t.clientName) map.set(t.clientId, t.clientName);
+    });
+    return Array.from(map, ([id, name]) => ({ id, name }));
+  }, [tasks]);
 
-    setNewTitle('');
-
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: Task = {
-      id: tempId,
-      title,
-      description: '',
-      status: 'todo',
-      priority: 'medium',
-      dueDate: null,
-      clientId: null,
-      clientName: null,
-      createdAt: new Date().toISOString(),
-    };
-
-    setTasks((prev) => [optimistic, ...prev]);
-
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      });
-      const data = await res.json();
-      setTasks((prev) => prev.map((t) => (t.id === tempId ? data.task ?? data : t)));
-    } catch {
-      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+  const filteredTasks = useMemo(() => {
+    switch (activeTab) {
+      case 'today':
+        return tasks.filter((t) => t.dueDate && isToday(t.dueDate));
+      case 'week':
+        return tasks.filter((t) => t.dueDate && isThisWeek(t.dueDate));
+      case 'overdue':
+        return tasks.filter(
+          (t) => t.status !== 'done' && t.dueDate && isOverdue(t.dueDate)
+        );
+      default:
+        return tasks;
     }
-  };
+  }, [tasks, activeTab]);
 
-  const toggleTask = async (task: Task) => {
+  const tabs: { key: TabKey; label: string; count: number }[] = [
+    { key: 'today', label: 'Today', count: tasks.filter((t) => t.dueDate && isToday(t.dueDate)).length },
+    { key: 'week', label: 'This Week', count: tasks.filter((t) => t.dueDate && isThisWeek(t.dueDate)).length },
+    { key: 'all', label: 'All', count: tasks.length },
+    {
+      key: 'overdue',
+      label: 'Overdue',
+      count: tasks.filter((t) => t.status !== 'done' && t.dueDate && isOverdue(t.dueDate)).length,
+    },
+  ];
+
+  async function toggleTask(task: Task) {
     const newStatus = task.status === 'done' ? 'todo' : 'done';
-
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
-    );
-
+    const updated = {
+      ...task,
+      status: newStatus,
+      completedAt: newStatus === 'done' ? new Date().toISOString() : null,
+    };
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
     try {
-      await fetch(`/api/tasks/${task.id}`, {
+      await fetch(`/api/v1/tasks/${task.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
     } catch {
-      // Revert
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: task.status } : t))
-      );
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
     }
-  };
+  }
 
-  const deleteTask = async (id: string) => {
-    const prev = tasks;
-    setTasks((t) => t.filter((task) => task.id !== id));
-    setSwipedId(null);
-
+  async function deleteTask(id: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+      await fetch(`/api/v1/tasks/${id}`, { method: 'DELETE' });
     } catch {
-      setTasks(prev);
+      // silently fail, already removed from UI
     }
-  };
+  }
 
-  const handleTouchStart = (e: React.TouchEvent, id: string) => {
-    touchStartX.current = e.touches[0].clientX;
-    if (swipedId && swipedId !== id) setSwipedId(null);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent, id: string) => {
-    const diff = touchStartX.current - e.changedTouches[0].clientX;
-    if (diff > 80) {
-      setSwipedId(id);
-    } else if (diff < -40) {
-      setSwipedId(null);
+  async function addTask(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter' || !newTitle.trim()) return;
+    const payload = {
+      title: newTitle.trim(),
+      priority: newPriority,
+      clientId: newClient || undefined,
+      dueDate: newDueDate || undefined,
+    };
+    try {
+      const res = await fetch('/api/v1/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const task = await res.json();
+      setTasks((prev) => [task, ...prev]);
+      setNewTitle('');
+      setNewDueDate('');
+    } catch {
+      // handle error silently
     }
-  };
-
-  const filtered = tasks.filter((t) => {
-    if (filter === 'all') return true;
-    return t.status === filter;
-  });
+  }
 
   return (
-    <div className="min-h-full bg-[#050E1A]">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[#050E1A]/95 backdrop-blur-sm border-b border-[#1A3550]">
-        <div className="px-4 pt-6 pb-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <CheckSquare className="text-[#00D4AA]" size={24} />
           <h1 className="text-2xl font-semibold text-[#F0F4F8]">Tasks</h1>
-        </div>
-
-        {/* Add task input */}
-        <div className="px-4 pb-3">
-          <div className="flex items-center gap-3 bg-[#0B1B2E] rounded-lg border border-[#1A3550] px-3 py-2.5 focus-within:border-[#00D4AA]/50 transition-colors">
-            <Plus className="w-4 h-4 text-[#829AB1] shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Add a task..."
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') addTask();
-              }}
-              className="flex-1 bg-transparent text-[#F0F4F8] placeholder:text-[#829AB1]/60 text-sm outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex gap-1 px-4 pb-3">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key)}
-              className={cn(
-                'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                filter === tab.key
-                  ? 'bg-[#00D4AA]/15 text-[#00D4AA]'
-                  : 'text-[#829AB1] hover:text-[#F0F4F8] hover:bg-[#0D2137]'
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
         </div>
       </div>
 
-      {/* Task list */}
-      <div className="divide-y divide-[#1A3550]">
+      {/* Tabs */}
+      <div className="flex gap-1 bg-[#0B1B2E] rounded-lg p-1 border border-[#1A3550] w-fit">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={cn(
+              'px-4 py-2 rounded-md text-sm font-medium transition-colors',
+              activeTab === tab.key
+                ? 'bg-[#00D4AA]/10 text-[#00D4AA]'
+                : 'text-[#829AB1] hover:text-[#F0F4F8]'
+            )}
+          >
+            {tab.label}
+            {tab.count > 0 && (
+              <span className="ml-1.5 text-xs opacity-70">({tab.count})</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Inline Add */}
+      <div className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] p-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Plus size={18} className="text-[#829AB1] shrink-0" />
+          <input
+            type="text"
+            placeholder="Add a task..."
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={addTask}
+            className="flex-1 min-w-[200px] bg-transparent text-[#F0F4F8] placeholder-[#829AB1]/50 outline-none text-sm"
+          />
+          <select
+            value={newPriority}
+            onChange={(e) => setNewPriority(e.target.value)}
+            className="bg-[#050E1A] border border-[#1A3550] rounded-md px-2 py-1.5 text-sm text-[#F0F4F8] outline-none"
+          >
+            {priorityOptions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <select
+            value={newClient}
+            onChange={(e) => setNewClient(e.target.value)}
+            className="bg-[#050E1A] border border-[#1A3550] rounded-md px-2 py-1.5 text-sm text-[#F0F4F8] outline-none"
+          >
+            <option value="">No client</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+            className="bg-[#050E1A] border border-[#1A3550] rounded-md px-2 py-1.5 text-sm text-[#F0F4F8] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Task List */}
+      <div className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] divide-y divide-[#1A3550]">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-5 h-5 border-2 border-[#00D4AA]/30 border-t-[#00D4AA] rounded-full animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-20 text-[#829AB1] text-sm">
-            {filter === 'all' ? 'No tasks yet. Add one above.' : 'No tasks match this filter.'}
+          <div className="p-8 text-center text-[#829AB1]">Loading tasks...</div>
+        ) : filteredTasks.length === 0 ? (
+          <div className="p-8 text-center text-[#829AB1]">
+            No tasks found for this view.
           </div>
         ) : (
-          filtered.map((task) => (
-            <div
-              key={task.id}
-              className="relative overflow-hidden group"
-              onTouchStart={(e) => handleTouchStart(e, task.id)}
-              onTouchEnd={(e) => handleTouchEnd(e, task.id)}
-            >
-              {/* Delete zone (swipe reveal) */}
-              <div className="absolute inset-y-0 right-0 w-20 bg-[#FF6B6B] flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-white" />
-              </div>
-
-              {/* Task row */}
+          filteredTasks.map((task) => {
+            const done = task.status === 'done';
+            const overdue =
+              !done && task.dueDate && isOverdue(task.dueDate);
+            return (
               <div
-                className={cn(
-                  'relative bg-[#0B1B2E] p-4 flex items-start gap-3 transition-transform duration-200',
-                  swipedId === task.id ? '-translate-x-20' : 'translate-x-0'
-                )}
+                key={task.id}
+                className="flex items-center gap-4 px-4 py-3 hover:bg-[#1A3550]/30 transition-colors group"
+                onMouseEnter={() => setHoveredId(task.id)}
+                onMouseLeave={() => setHoveredId(null)}
               >
                 {/* Checkbox */}
                 <button
                   onClick={() => toggleTask(task)}
-                  className="shrink-0 mt-0.5 transition-colors"
+                  className={cn(
+                    'w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors',
+                    done
+                      ? 'bg-[#00D4AA] border-[#00D4AA]'
+                      : 'border-[#1A3550] hover:border-[#00D4AA]'
+                  )}
                 >
-                  {task.status === 'done' ? (
-                    <CheckCircle2 className="w-5 h-5 text-[#00D4AA]" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-[#829AB1] hover:text-[#00D4AA]" />
+                  {done && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2.5 6L5 8.5L9.5 3.5"
+                        stroke="#050E1A"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   )}
                 </button>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        'text-sm truncate',
-                        task.status === 'done'
-                          ? 'line-through text-[#829AB1]/60'
-                          : 'text-[#F0F4F8]'
-                      )}
-                    >
-                      {task.title}
-                    </span>
-                    <span
-                      className={cn(
-                        'shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded',
-                        PRIORITY_STYLES[task.priority] ?? PRIORITY_STYLES.medium
-                      )}
-                    >
-                      {task.priority}
-                    </span>
-                  </div>
+                {/* Title */}
+                <span
+                  className={cn(
+                    'flex-1 text-sm min-w-0 truncate',
+                    done
+                      ? 'line-through text-[#829AB1]/50'
+                      : 'text-[#F0F4F8]'
+                  )}
+                >
+                  {task.title}
+                </span>
 
-                  <div className="flex items-center gap-3 mt-1">
-                    {task.clientName && (
-                      <span className="text-xs text-[#829AB1] hover:text-[#00D4AA] cursor-pointer transition-colors truncate">
-                        {task.clientName}
-                      </span>
-                    )}
-                    {task.dueDate && (
-                      <span
-                        className={cn(
-                          'text-xs shrink-0',
-                          isOverdue(task.dueDate) && task.status !== 'done'
-                            ? 'text-[#FF6B6B]'
-                            : 'text-[#829AB1]'
-                        )}
-                      >
-                        {formatDue(task.dueDate)}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                {/* Priority Badge */}
+                <span
+                  className={cn(
+                    'text-xs px-2 py-0.5 rounded-full border shrink-0',
+                    getPriorityBadgeColor(task.priority)
+                  )}
+                >
+                  {task.priority}
+                </span>
 
-                {/* Delete button (hover, desktop) */}
+                {/* Client */}
+                {task.clientName && (
+                  <span className="text-xs text-[#829AB1] shrink-0 hidden sm:inline">
+                    {task.clientName}
+                  </span>
+                )}
+
+                {/* Category Badge */}
+                {task.category && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#1A3550]/50 text-[#829AB1] border border-[#1A3550] shrink-0 hidden md:inline">
+                    {task.category}
+                  </span>
+                )}
+
+                {/* Due Date */}
+                {task.dueDate && (
+                  <span
+                    className={cn(
+                      'text-xs shrink-0 flex items-center gap-1',
+                      overdue ? 'text-red-400' : 'text-[#829AB1]'
+                    )}
+                  >
+                    <Calendar size={12} />
+                    {formatDate(task.dueDate)}
+                  </span>
+                )}
+
+                {/* Playbook Badge */}
+                {task.playbook && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#00D4AA]/10 text-[#00D4AA] border border-[#00D4AA]/20 shrink-0 hidden lg:inline-flex items-center gap-1">
+                    <BookOpen size={10} />
+                    {task.playbook}
+                  </span>
+                )}
+
+                {/* Delete */}
                 <button
                   onClick={() => deleteTask(task.id)}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-[#FF6B6B] text-[#829AB1]"
+                  className={cn(
+                    'p-1 rounded hover:bg-red-500/10 text-red-400 transition-opacity shrink-0',
+                    hoveredId === task.id ? 'opacity-100' : 'opacity-0'
+                  )}
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <X size={14} />
                 </button>
               </div>
-
-              {/* Tappable delete zone when swiped */}
-              {swipedId === task.id && (
-                <button
-                  onClick={() => deleteTask(task.id)}
-                  className="absolute inset-y-0 right-0 w-20"
-                  aria-label="Delete task"
-                />
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

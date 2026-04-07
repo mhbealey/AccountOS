@@ -1,64 +1,146 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   Users,
-  Shield,
   DollarSign,
-  CheckCircle,
+  Target,
+  HeartPulse,
+  Clock,
+  CheckSquare,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  MessageSquare,
+  Phone,
+  Mail,
+  FileText,
   Activity,
+  Loader2,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
-import { cn, formatCurrency, getScoreColor, getScoreLabel } from '@/lib/utils';
+import { cn, formatCurrency, getHealthColor, getHealthLabel, getHealthBg, formatRelativeTime, getSentimentColor } from '@/lib/utils';
 
-const ScoreTrendChart = dynamic(() => import('@/components/charts/ScoreTrendChart'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[280px] items-center justify-center text-sm" style={{ color: '#829AB1' }}>
-      Loading chart...
-    </div>
-  ),
-});
+interface DashboardMetrics {
+  activeClients: number;
+  mrr: number;
+  weightedPipeline: number;
+  avgHealth: number;
+  utilization: number;
+  openTasks: number;
+}
+
+interface Alert {
+  id: string;
+  type: string;
+  message: string;
+  clientId: string;
+  clientName: string;
+  urgency: number;
+}
+
+interface RecentActivity {
+  id: string;
+  type: string;
+  title: string;
+  clientName: string;
+  sentiment: string;
+  createdAt: string;
+}
+
+interface ClientHealth {
+  id: string;
+  name: string;
+  healthScore: number;
+  mrr: number;
+  lastContactAt: string;
+}
 
 interface DashboardData {
-  clientCount: number;
-  avgScore: number;
-  totalMrr: number;
-  openTasks: number;
-  scoreHistory: { month: string; score: number }[];
-  recentActivity: {
-    id: string;
-    type: string;
-    title: string;
-    clientName: string | null;
-    createdAt: string;
-  }[];
-  clientScores: {
-    id: string;
-    name: string;
-    score: number;
-  }[];
+  metrics: DashboardMetrics;
+  alerts: Alert[];
+  recentActivities: RecentActivity[];
+  clientHealth: ClientHealth[];
 }
 
-function getBarColor(score: number): string {
-  if (score <= 25) return '#FF6B6B';
-  if (score <= 50) return '#FFB347';
-  if (score <= 75) return '#00D4AA';
-  return '#5EEAD4';
+const defaultMetrics: DashboardMetrics = {
+  activeClients: 0,
+  mrr: 0,
+  weightedPipeline: 0,
+  avgHealth: 0,
+  utilization: 0,
+  openTasks: 0,
+};
+
+function getActivityIcon(type: string) {
+  switch (type) {
+    case 'meeting':
+    case 'call':
+      return Phone;
+    case 'email':
+      return Mail;
+    case 'note':
+      return FileText;
+    case 'message':
+      return MessageSquare;
+    default:
+      return Activity;
+  }
 }
 
-function timeAgo(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diff = now - then;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function getAlertTint(type: string) {
+  switch (type) {
+    case 'churn_risk':
+    case 'health_drop':
+      return 'border-red-500/30 bg-red-500/5';
+    case 'overdue':
+    case 'missed_meeting':
+      return 'border-yellow-500/30 bg-yellow-500/5';
+    default:
+      return 'border-blue-500/30 bg-blue-500/5';
+  }
+}
+
+function getAlertIconColor(type: string) {
+  switch (type) {
+    case 'churn_risk':
+    case 'health_drop':
+      return 'text-red-400';
+    case 'overdue':
+    case 'missed_meeting':
+      return 'text-yellow-400';
+    default:
+      return 'text-blue-400';
+  }
+}
+
+function getAlertAction(type: string) {
+  switch (type) {
+    case 'churn_risk':
+      return 'Schedule check-in';
+    case 'health_drop':
+      return 'Review health factors';
+    case 'overdue':
+      return 'Follow up now';
+    case 'missed_meeting':
+      return 'Reschedule meeting';
+    default:
+      return 'Take action';
+  }
+}
+
+function getSentimentDotColor(sentiment: string | null) {
+  if (!sentiment) return 'bg-slate-400';
+  switch (sentiment) {
+    case 'Positive':
+      return 'bg-emerald-400';
+    case 'Negative':
+      return 'bg-red-400';
+    default:
+      return 'bg-slate-400';
+  }
 }
 
 export default function DashboardPage() {
@@ -67,154 +149,253 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then((res) => {
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        return res.json();
-      })
-      .then((json) => setData(json))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    async function fetchDashboard() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch('/api/v1/dashboard');
+        if (!res.ok) {
+          throw new Error(`Failed to load dashboard (${res.status})`);
+        }
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboard();
   }, []);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: '#050E1A' }}>
-        <div
-          className="h-8 w-8 animate-spin rounded-full"
-          style={{ border: '2px solid #1A3550', borderTopColor: '#00D4AA' }}
-        />
+      <div className="flex items-center justify-center h-full min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-[#00D4AA]" />
+          <p className="text-[#829AB1] text-sm">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center" style={{ background: '#050E1A' }}>
-        <p style={{ color: '#829AB1' }}>{error || 'Failed to load dashboard data.'}</p>
+      <div className="flex items-center justify-center h-full min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3 text-center px-4">
+          <AlertCircle className="h-8 w-8 text-red-400" />
+          <p className="text-red-400 font-medium">Failed to load dashboard</p>
+          <p className="text-[#829AB1] text-sm">{error}</p>
+        </div>
       </div>
     );
   }
 
-  const totalClients = data.clientCount ?? 0;
-  const avgScore = data.avgScore ?? 0;
-  const totalMrr = data.totalMrr ?? 0;
-  const openTasks = data.openTasks ?? 0;
-  const scoreTrend = Array.isArray(data.scoreHistory) ? data.scoreHistory : [];
-  const activities = Array.isArray(data.recentActivity) ? data.recentActivity : [];
-  const clients = Array.isArray(data.clientScores) ? data.clientScores : [];
+  const metrics = data?.metrics ?? defaultMetrics;
+  const alerts = Array.isArray(data?.alerts) ? data.alerts : [];
+  const recentActivities = Array.isArray(data?.recentActivities) ? data.recentActivities : [];
+  const clientHealth = Array.isArray(data?.clientHealth) ? data.clientHealth : [];
+
+  const sortedAlerts = [...alerts].sort((a, b) => (b.urgency ?? 0) - (a.urgency ?? 0));
+  const sortedHealth = [...clientHealth].sort((a, b) => (a.healthScore ?? 0) - (b.healthScore ?? 0));
+  const recentTen = recentActivities.slice(0, 10);
+
+  const metricCards = [
+    {
+      label: 'Active Clients',
+      value: String(metrics.activeClients ?? 0),
+      icon: Users,
+      color: 'text-[#00D4AA]',
+    },
+    {
+      label: 'Monthly Recurring Revenue',
+      value: formatCurrency(metrics.mrr ?? 0),
+      icon: DollarSign,
+      color: 'text-emerald-400',
+    },
+    {
+      label: 'Weighted Pipeline',
+      value: formatCurrency(metrics.weightedPipeline ?? 0),
+      icon: Target,
+      color: 'text-blue-400',
+    },
+    {
+      label: 'Avg Health Score',
+      value: String(metrics.avgHealth ?? 0),
+      icon: HeartPulse,
+      color: getHealthColor(metrics.avgHealth ?? 0),
+    },
+    {
+      label: 'Utilization',
+      value: `${metrics.utilization ?? 0}%`,
+      icon: Clock,
+      color: 'text-purple-400',
+    },
+    {
+      label: 'Open Tasks',
+      value: String(metrics.openTasks ?? 0),
+      icon: CheckSquare,
+      color: 'text-yellow-400',
+    },
+  ];
 
   return (
-    <div className="min-h-screen p-4 md:p-8" style={{ background: '#050E1A' }}>
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#F0F4F8' }}>Dashboard</h1>
-          <p className="mt-1 text-sm" style={{ color: '#829AB1' }}>
-            Your cyber account management overview
-          </p>
-        </div>
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-[#F0F4F8]">Dashboard</h1>
+        <p className="text-[#829AB1] text-sm mt-1">Overview of your account management portfolio</p>
+      </div>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <MetricCard icon={<Users size={16} />} label="Total Clients" value={String(totalClients)} />
-          <MetricCard
-            icon={<Shield size={16} />}
-            label="Average Score"
-            value={String(avgScore)}
-            valueColor={getScoreColor(avgScore)}
-            sub={getScoreLabel(avgScore)}
-          />
-          <MetricCard icon={<DollarSign size={16} />} label="Monthly Revenue" value={formatCurrency(totalMrr)} />
-          <MetricCard icon={<CheckCircle size={16} />} label="Open Tasks" value={String(openTasks)} />
-        </div>
+      {/* Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        {metricCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={card.label}
+              className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] p-5 flex flex-col gap-2"
+            >
+              <div className="flex items-center justify-between">
+                <Icon className={cn('h-5 w-5', card.color)} />
+              </div>
+              <p className="text-3xl font-bold text-[#F0F4F8]">{card.value}</p>
+              <p className="text-xs text-[#829AB1] leading-tight">{card.label}</p>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* Score Trend */}
-        <Card title="Score Trend">
-          <ScoreTrendChart data={scoreTrend} />
-        </Card>
-
-        {/* Recent Activity */}
-        <Card title="Recent Activity">
-          {activities.length > 0 ? (
-            <ul className="space-y-3">
-              {activities.map((a) => (
-                <li key={a.id} className="flex items-start gap-3">
-                  <Activity size={16} className="mt-0.5 shrink-0" style={{ color: '#829AB1' }} />
+      {/* Needs Attention */}
+      {sortedAlerts.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold text-[#F0F4F8] flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-400" />
+            Needs Attention
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sortedAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={cn(
+                  'rounded-xl border p-4 flex flex-col gap-2',
+                  getAlertTint(alert.type ?? '')
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle
+                    className={cn('h-5 w-5 shrink-0 mt-0.5', getAlertIconColor(alert.type ?? ''))}
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm" style={{ color: '#F0F4F8' }}>{a.title}</p>
-                    {a.clientName && <p className="text-xs" style={{ color: '#829AB1' }}>{a.clientName}</p>}
+                    <p className="text-sm text-[#F0F4F8] leading-snug">
+                      {alert.message ?? 'No details available'}
+                    </p>
+                    {alert.clientName && (
+                      <Link
+                        href={`/clients/${alert.clientId}`}
+                        className="text-[#00D4AA] text-xs hover:underline mt-1 inline-block"
+                      >
+                        {alert.clientName}
+                      </Link>
+                    )}
                   </div>
-                  <span className="shrink-0 text-xs" style={{ color: '#829AB1' }}>{timeAgo(a.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="py-8 text-center text-sm" style={{ color: '#829AB1' }}>No recent activity.</p>
-          )}
-        </Card>
+                </div>
+                <p className="text-xs text-[#829AB1] italic">{getAlertAction(alert.type ?? '')}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-        {/* Client Health */}
-        <Card title="Client Health">
-          {clients.length > 0 ? (
-            <ul className="space-y-3">
-              {[...clients].sort((a, b) => a.score - b.score).map((c) => (
-                <li key={c.id} className="flex items-center gap-4">
-                  <span className="w-36 shrink-0 truncate text-sm" style={{ color: '#F0F4F8' }}>{c.name}</span>
-                  <div className="flex-1">
-                    <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: '#1A3550' }}>
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${c.score}%`, background: getBarColor(c.score) }}
-                      />
+      {/* Two-column: Recent Activity + Client Health */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Recent Activity */}
+        <div className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] p-5">
+          <h2 className="text-lg font-semibold text-[#F0F4F8] mb-4">Recent Activity</h2>
+          {recentTen.length === 0 ? (
+            <p className="text-[#829AB1] text-sm">No recent activity</p>
+          ) : (
+            <div className="space-y-3">
+              {recentTen.map((activity) => {
+                const Icon = getActivityIcon(activity.type ?? '');
+                return (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className="mt-0.5 shrink-0">
+                      <Icon className="h-4 w-4 text-[#829AB1]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-[#F0F4F8] leading-snug truncate">
+                        {activity.title ?? 'Untitled'}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-[#00D4AA]">
+                          {activity.clientName ?? 'Unknown'}
+                        </span>
+                        <span className="text-xs text-[#829AB1]">
+                          {activity.createdAt ? formatRelativeTime(activity.createdAt) : ''}
+                        </span>
+                        {activity.sentiment && (
+                          <span
+                            className={cn(
+                              'inline-block h-2 w-2 rounded-full',
+                              getSentimentDotColor(activity.sentiment)
+                            )}
+                            title={activity.sentiment}
+                          />
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <span className={cn('w-10 text-right text-sm font-medium', getScoreColor(c.score))}>
-                    {c.score}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="py-8 text-center text-sm" style={{ color: '#829AB1' }}>No client data available.</p>
+                );
+              })}
+            </div>
           )}
-        </Card>
-      </div>
-    </div>
-  );
-}
+        </div>
 
-function MetricCard({
-  icon,
-  label,
-  value,
-  valueColor,
-  sub,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  valueColor?: string;
-  sub?: string;
-}) {
-  return (
-    <div className="rounded-xl p-5" style={{ background: '#0B1B2E', border: '1px solid #1A3550' }}>
-      <div className="flex items-center gap-2" style={{ color: '#829AB1' }}>
-        {icon}
-        <span className="text-sm font-medium">{label}</span>
+        {/* Client Health */}
+        <div className="bg-[#0B1B2E] rounded-xl border border-[#1A3550] p-5">
+          <h2 className="text-lg font-semibold text-[#F0F4F8] mb-4">Client Health</h2>
+          {sortedHealth.length === 0 ? (
+            <p className="text-[#829AB1] text-sm">No client data available</p>
+          ) : (
+            <div className="space-y-3">
+              {sortedHealth.map((client) => {
+                const score = client.healthScore ?? 0;
+                return (
+                  <div key={client.id} className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <Link
+                          href={`/clients/${client.id}`}
+                          className="text-sm text-[#F0F4F8] hover:text-[#00D4AA] transition-colors truncate"
+                        >
+                          {client.name ?? 'Unknown'}
+                        </Link>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-xs text-[#829AB1]">
+                            {formatCurrency(client.mrr ?? 0)}
+                          </span>
+                          <span
+                            className={cn('text-sm font-semibold tabular-nums', getHealthColor(score))}
+                          >
+                            {score}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-[#1A3550]">
+                        <div
+                          className={cn('h-full rounded-full transition-all', getHealthBg(score))}
+                          style={{ width: `${Math.min(Math.max(score, 0), 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
-      <p className={cn('mt-3 text-3xl font-bold', valueColor)} style={valueColor ? undefined : { color: '#F0F4F8' }}>
-        {value}
-      </p>
-      {sub && <p className={cn('mt-1 text-xs', valueColor)} style={valueColor ? undefined : { color: '#829AB1' }}>{sub}</p>}
-    </div>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl p-5" style={{ background: '#0B1B2E', border: '1px solid #1A3550' }}>
-      <h2 className="mb-4 text-lg font-semibold" style={{ color: '#F0F4F8' }}>{title}</h2>
-      {children}
     </div>
   );
 }

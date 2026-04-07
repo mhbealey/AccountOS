@@ -7,137 +7,521 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// ── Core ────────────────────────────────────────────────────────────────────
-
+// ─── USER ───
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  name            String
+  businessName    String?
+  address         String?
+  phone           String?
+  website         String?
+  logoBase64      String?
+  defaultRate     Float    @default(150)
+  defaultTerms    String   @default("Net 30")
+  taxId           String?
+  goalAnnualRev   Float?
+  goalMonthlyHrs  Float    @default(160)
+  invoiceCounter  Int      @default(0)
+  concentrationThreshold Float @default(30)
+  createdAt       DateTime @default(now())
 }
 
-// ── Clients ─────────────────────────────────────────────────────────────────
-
+// ─── CLIENTS ───
 model Client {
-  id           String    @id @default(cuid())
-  name         String
-  industry     String?
-  size         String?
-  status       String    @default("active")
-  tier         String?
-  contactName  String?
-  contactEmail String?
-  contactPhone String?
-  logo         String?
-  notes        String?
-  mrr          Float     @default(0)
-  contractEnd  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  name                String
+  status              String    @default("Active")
+  industry            String?
+  website             String?
+  companySize         String?
+  tier                String?
+  source              String?
+  maturityStage       String?
+  referredById        String?
+  referredBy          Client?   @relation("Referrals", fields: [referredById], references: [id])
+  referrals           Client[]  @relation("Referrals")
+  mrr                 Float     @default(0)
+  contractValue       Float     @default(0)
+  healthScore         Int       @default(50)
+  engagementScore     Int       @default(50)
+  satisfactionScore   Int?
+  paymentScore        Int       @default(100)
+  adoptionScore       Int?
+  csmPulse            Int       @default(50)
+  lastHealthUpdate    DateTime?
+  preferredChannel    String?
+  preferredFrequency  String?
+  communicationNotes  String?
+  onboardedAt         DateTime?
+  firstValueAt        DateTime?
+  lastContactAt       DateTime?
+  nextQbrDate         DateTime?
+  lastQbrDate         DateTime?
+  churnedAt           DateTime?
+  churnReason         String?
+  pauseReason         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  journeyPhases  JourneyPhase[]
-  valueOutcomes  ValueOutcome[]
-  scoreSnapshots ScoreSnapshot[]
-  services       ClientService[]
-  tasks          Task[]
-  activities     Activity[]
+  contacts        Contact[]
+  deals           Deal[]
+  tasks           Task[]
+  timeEntries     TimeEntry[]
+  invoices        Invoice[]
+  contracts       Contract[]
+  activities      Activity[]
+  proposals       Proposal[]
+  goals           ClientGoal[]
+  services        ClientService[]
+  healthSnapshots HealthScoreSnapshot[]
+  competitors     ClientCompetitor[]
+  notes           Note[]
+
+  @@index([status])
+  @@index([lastContactAt])
+  @@index([healthScore])
 }
 
-// ── Cyber Journey ───────────────────────────────────────────────────────────
+// ─── NOTES ───
+model Note {
+  id         String   @id @default(cuid())
+  clientId   String?
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dealId     String?
+  contractId String?
+  content    String
+  createdAt  DateTime @default(now())
 
-model JourneyPhase {
+  @@index([clientId])
+}
+
+// ─── CONTACTS ───
+model Contact {
+  id            String     @id @default(cuid())
+  clientId      String
+  client        Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name          String
+  title         String?
+  email         String?
+  phone         String?
+  role          String?
+  sentiment     String?
+  isPrimary     Boolean    @default(false)
+  isExecutive   Boolean    @default(false)
+  notes         String?
+  lastContactAt DateTime?
+  linkedinUrl   String?
+  birthday      String?
+  interests     String?
+  reportsToId   String?
+  reportsTo     Contact?   @relation("OrgChart", fields: [reportsToId], references: [id])
+  directReports Contact[]  @relation("OrgChart")
+  activities    Activity[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([clientId])
+}
+
+// ─── PIPELINE ───
+model Deal {
+  id              String        @id @default(cuid())
+  clientId        String
+  client          Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title           String
+  value           Float
+  stage           String        @default("Lead")
+  probability     Int           @default(10)
+  closeDate       DateTime?
+  actualCloseDate DateTime?
+  notes           String?
+  lostReason      String?
+  winFactors      String?
+  nextStep        String?
+  proposalId      String?
+  proposal        Proposal?     @relation(fields: [proposalId], references: [id])
+  activities      Activity[]
+  stageHistory    StageChange[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([stage])
+}
+
+model StageChange {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  fromStage String
+  toStage   String
+  changedAt DateTime @default(now())
+  notes     String?
+
+  @@index([dealId])
+}
+
+// ─── TASKS ───
+model Task {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?
+  clientId        String?
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  priority        String    @default("Medium")
+  status          String    @default("open")
+  category        String?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  recurring       String?
+  recurringAnchor DateTime?
+  playbook        String?
+  playbookStep    Int?
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+// ─── TIME TRACKING ───
+model TimeEntry {
+  id          String    @id @default(cuid())
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  description String
+  hours       Float
+  rate        Float
+  date        DateTime
+  category    String?
+  invoiceId   String?
+  invoice     Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  billable    Boolean   @default(true)
+  timerStart  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([clientId])
+  @@index([date])
+}
+
+// ─── INVOICES ───
+model Invoice {
+  id             String            @id @default(cuid())
+  clientId       String
+  client         Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  number         String            @unique
+  amount         Float
+  tax            Float             @default(0)
+  status         String            @default("Draft")
+  issuedDate     DateTime
+  dueDate        DateTime
+  paidDate       DateTime?
+  paymentMethod  String?
+  lineItems      InvoiceLineItem[]
+  notes          String?
+  terms          String?
+  voidReason     String?
+  reminderSentAt DateTime?
+  timeEntries    TimeEntry[]
+  auditLog       AuditLog[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([status])
+  @@index([dueDate])
+  @@index([clientId])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float   @default(1)
+  unitPrice   Float
+  amount      Float
+  timeEntryId String?
+  sortOrder   Int     @default(0)
+}
+
+// ─── CONTRACTS ───
+model Contract {
+  id                String    @id @default(cuid())
+  clientId          String
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title             String
+  type              String
+  status            String    @default("Draft")
+  startDate         DateTime?
+  endDate           DateTime?
+  value             Float?
+  monthlyValue      Float?
+  renewalType       String?
+  renewalTerms      String?
+  reminderDays      Int       @default(30)
+  autoRenewDate     DateTime?
+  terminationClause String?
+  optOutDays        Int?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([endDate])
+  @@index([status])
+}
+
+// ─── ACTIVITY LOG ───
+model Activity {
+  id                  String   @id @default(cuid())
+  clientId            String?
+  client              Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contactId           String?
+  contact             Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId              String?
+  deal                Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  type                String
+  title               String
+  description         String?
+  date                DateTime @default(now())
+  duration            Int?
+  outcome             String?
+  sentiment           String?
+  isKeyMoment         Boolean  @default(false)
+  isSuccessStory      Boolean  @default(false)
+  isProactive         Boolean  @default(true)
+  competitorMentioned String?
+  createdAt           DateTime @default(now())
+
+  @@index([clientId])
+  @@index([contactId])
+  @@index([dealId])
+  @@index([date])
+}
+
+// ─── PROPOSALS ───
+model Proposal {
+  id               String                @id @default(cuid())
+  clientId         String
+  client           Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title            String
+  status           String                @default("Draft")
+  type             String                @default("Proposal")
+  executiveSummary String?
+  problemStatement String?
+  scopeOfWork      String?
+  deliverables     ProposalDeliverable[]
+  timeline         String?
+  investment       Float?
+  paymentTerms     String?
+  validUntil       DateTime?
+  sentAt           DateTime?
+  acceptedAt       DateTime?
+  declinedReason   String?
+  deals            Deal[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([clientId])
+}
+
+model ProposalDeliverable {
+  id          String   @id @default(cuid())
+  proposalId  String
+  proposal    Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  sortOrder   Int      @default(0)
+}
+
+// ─── CLIENT GOALS ───
+model ClientGoal {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  targetMetric  String?
+  targetValue   Float?
+  currentValue  Float?
+  baselineValue Float?
+  unit          String?
+  status        String    @default("In Progress")
+  dueDate       DateTime?
+  achievedAt    DateTime?
+  quarter       String?
+  createdAt     DateTime  @default(now())
+
+  @@index([clientId])
+}
+
+// ─── CLIENT SERVICES ───
+model ClientService {
   id          String    @id @default(cuid())
   clientId    String
   client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  phase       String
-  status      String    @default("not_started")
-  order       Int
-  startedAt   DateTime?
-  completedAt DateTime?
+  serviceName String
+  category    String
+  status      String    @default("Active")
+  revenue     Float?
+  startDate   DateTime?
+  dependsOn   String?
   notes       String?
   createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  @@index([clientId])
 }
 
-// ── 6 Value Outcomes ────────────────────────────────────────────────────────
-
-model ValueOutcome {
-  id       String   @id @default(cuid())
-  clientId String
-  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  category String
-  score    Int      @default(0)
-  notes    String?
-  updatedAt DateTime @updatedAt
-}
-
-// ── Score Tracking ──────────────────────────────────────────────────────────
-
-model ScoreSnapshot {
-  id               String   @id @default(cuid())
-  clientId         String
-  client           Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  overallScore     Int
-  riskReduction    Int      @default(0)
-  compliance       Int      @default(0)
-  resilience       Int      @default(0)
-  dataProtection   Int      @default(0)
-  incidentResponse Int      @default(0)
-  securityCulture  Int      @default(0)
-  capturedAt       DateTime @default(now())
-}
-
-// ── Services ────────────────────────────────────────────────────────────────
-
-model Service {
+// ─── CLIENT COMPETITORS ───
+model ClientCompetitor {
   id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name        String
-  category    String
+  services    String?
+  threatLevel String   @default("Low")
+  notes       String?
+  detectedAt  DateTime @default(now())
+
+  @@index([clientId])
+}
+
+// ─── PLAYBOOKS ───
+model Playbook {
+  id          String         @id @default(cuid())
+  name        String
   description String?
-  createdAt   DateTime @default(now())
-
-  clients ClientService[]
+  trigger     String
+  steps       PlaybookStep[]
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
 }
 
-model ClientService {
-  id        String   @id @default(cuid())
-  clientId  String
-  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  serviceId String
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  status    String   @default("opportunity")
-  revenue   Float?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([clientId, serviceId])
+model PlaybookStep {
+  id           String   @id @default(cuid())
+  playbookId   String
+  playbook     Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  dayOffset    Int      @default(0)
+  taskPriority String   @default("Medium")
+  taskCategory String?
+  sortOrder    Int      @default(0)
 }
 
-// ── Tasks ───────────────────────────────────────────────────────────────────
-
-model Task {
+model PlaybookExecution {
   id          String    @id @default(cuid())
-  title       String
-  description String?
-  status      String    @default("todo")
-  priority    String    @default("medium")
-  dueDate     DateTime?
-  clientId    String?
-  client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  playbookId  String
+  clientId    String
+  status      String    @default("In Progress")
+  currentStep Int       @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
 }
 
-// ── Activity Log ────────────────────────────────────────────────────────────
-
-model Activity {
-  id        String   @id @default(cuid())
-  clientId  String?
-  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  type      String
-  title     String
-  details   String?
+// ─── TEMPLATES ───
+model Template {
+  id       String   @id @default(cuid())
+  name     String
+  category String
+  subject  String?
+  body     String
   createdAt DateTime @default(now())
+}
+
+// ─── KNOWLEDGE BASE ───
+model Snippet {
+  id       String   @id @default(cuid())
+  title    String
+  category String
+  content  String
+  tags     String?
+  createdAt DateTime @default(now())
+}
+
+// ─── EXPENSES ───
+model Expense {
+  id        String    @id @default(cuid())
+  title     String
+  amount    Float
+  frequency String    @default("monthly")
+  category  String?
+  startDate DateTime?
+  endDate   DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+}
+
+// ─── NETWORK ───
+model NetworkContact {
+  id           String    @id @default(cuid())
+  name         String
+  company      String?
+  title        String?
+  email        String?
+  phone        String?
+  relationship String?
+  source       String?
+  notes        String?
+  lastContactAt DateTime?
+  nextFollowUp DateTime?
+  tags         String?
+  createdAt    DateTime  @default(now())
+}
+
+// ─── HEALTH SCORE HISTORY ───
+model HealthScoreSnapshot {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  score        Int
+  engagement   Int
+  satisfaction Int?
+  payment      Int
+  adoption     Int?
+  csmPulse     Int
+  recordedAt   DateTime @default(now())
+
+  @@index([clientId])
+  @@index([recordedAt])
+}
+
+// ─── METRIC SNAPSHOTS ───
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  metric     String
+  value      Float
+  recordedAt DateTime @default(now())
+
+  @@index([metric])
+  @@index([recordedAt])
+}
+
+// ─── AUDIT LOG ───
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  changes     String
+  invoiceId   String?
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  performedAt DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+}
+
+// ─── HEALTH SCORE CONFIG ───
+model HealthScoreConfig {
+  id                 String @id @default(cuid())
+  engagementWeight   Float  @default(25)
+  satisfactionWeight Float  @default(20)
+  paymentWeight      Float  @default(20)
+  adoptionWeight     Float  @default(15)
+  csmPulseWeight     Float  @default(20)
 }

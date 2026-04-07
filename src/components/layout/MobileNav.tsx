@@ -20,6 +20,7 @@ import {
   Mail,
   Globe,
   Settings,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,11 +36,13 @@ const moreItems = [
   { label: 'Time', href: '/time', icon: Clock },
   { label: 'Invoices', href: '/invoices', icon: FileText },
   { label: 'Contracts', href: '/contracts', icon: Shield },
+  { label: 'Expenses', href: '/expenses', icon: Receipt },
   { label: 'Proposals', href: '/proposals', icon: Lightbulb },
   { label: 'Playbooks', href: '/playbooks', icon: BookOpen },
   { label: 'Reports', href: '/reports', icon: BarChart3 },
   { label: 'Templates', href: '/templates', icon: Mail },
   { label: 'Network', href: '/network', icon: Globe },
+  { label: 'Knowledge Base', href: '/snippets', icon: BookOpen },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 

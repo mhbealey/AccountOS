@@ -20,6 +20,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +52,7 @@ const navSections: NavSection[] = [
       { label: 'Time', href: '/time', icon: Clock },
       { label: 'Invoices', href: '/invoices', icon: FileText },
       { label: 'Contracts', href: '/contracts', icon: Shield },
+      { label: 'Expenses', href: '/expenses', icon: Receipt },
     ],
   },
   {
@@ -66,6 +68,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Templates', href: '/templates', icon: Mail },
       { label: 'Network', href: '/network', icon: Globe },
+      { label: 'Knowledge Base', href: '/snippets', icon: BookOpen },
       { label: 'Settings', href: '/settings', icon: Settings },
     ],
   },

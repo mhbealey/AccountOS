@@ -10,12 +10,14 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  TableProperties,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'Excel OS', icon: TableProperties, path: '/os' },
   { label: 'Clients', icon: Users, path: '/clients' },
   { label: 'Tasks', icon: CheckSquare, path: '/tasks' },
   { label: 'Services', icon: Shield, path: '/services' },

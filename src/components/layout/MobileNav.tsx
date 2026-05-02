@@ -8,15 +8,16 @@ import {
   CheckSquare,
   Shield,
   Settings,
+  TableProperties,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { label: 'OS', icon: TableProperties, path: '/os' },
   { label: 'Clients', icon: Users, path: '/clients' },
   { label: 'Tasks', icon: CheckSquare, path: '/tasks' },
   { label: 'Services', icon: Shield, path: '/services' },
-  { label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 export default function MobileNav() {

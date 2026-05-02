@@ -48,6 +48,9 @@ export async function PATCH(
     if (body.contractEnd) {
       body.contractEnd = new Date(body.contractEnd);
     }
+    if (body.contractStart) {
+      body.contractStart = new Date(body.contractStart);
+    }
 
     const client = await prisma.client.update({
       where: { id },

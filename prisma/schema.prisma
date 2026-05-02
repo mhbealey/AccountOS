@@ -20,28 +20,32 @@ model User {
 // ── Clients ─────────────────────────────────────────────────────────────────
 
 model Client {
-  id           String    @id @default(cuid())
-  name         String
-  industry     String?
-  size         String?
-  status       String    @default("active")
-  tier         String?
-  contactName  String?
-  contactEmail String?
-  contactPhone String?
-  logo         String?
-  notes        String?
-  mrr          Float     @default(0)
-  contractEnd  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  name                String
+  industry            String?
+  size                String?
+  status              String    @default("active")
+  tier                String?
+  contactName         String?
+  contactEmail        String?
+  contactPhone        String?
+  logo                String?
+  notes               String?
+  mrr                 Float     @default(0)
+  contractStart       DateTime?
+  contractEnd         DateTime?
+  forecastCallPercent Float?
+  forecastReason      String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  journeyPhases  JourneyPhase[]
-  valueOutcomes  ValueOutcome[]
-  scoreSnapshots ScoreSnapshot[]
-  services       ClientService[]
-  tasks          Task[]
-  activities     Activity[]
+  journeyPhases    JourneyPhase[]
+  valueOutcomes    ValueOutcome[]
+  scoreSnapshots   ScoreSnapshot[]
+  services         ClientService[]
+  tasks            Task[]
+  activities       Activity[]
+  accountPlanItems AccountPlanItem[]
 }
 
 // ── Cyber Journey ───────────────────────────────────────────────────────────
@@ -126,6 +130,22 @@ model Task {
   dueDate     DateTime?
   clientId    String?
   client      Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ── Account Plan ────────────────────────────────────────────────────────────
+
+model AccountPlanItem {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  task        String
+  description String?
+  dueDate     DateTime?
+  roi         String?
+  comments    String?
+  order       Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
